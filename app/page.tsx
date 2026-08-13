@@ -1,3 +1,7 @@
+"use client"
+
+import '../app/globals.css'
+import { AssistantProvider } from '../context/AssistantContext'
 import Link from 'next/link'
 import { TramiteCard } from '../components/TramiteCard'
 import Assistant from '../components/Assistant'
@@ -13,29 +17,31 @@ export default function Home() {
   ]
 
   return (
-    <main className="min-h-screen p-4 max-w-md mx-auto">
-      <header className="flex items-center justify-between my-4">
-        <h1 className="text-2xl font-bold">Hola, soy tu asistente de Papelería Arcoíris 🌈</h1>
-      </header>
+    <AssistantProvider>
+      <main className="min-h-screen p-4 max-w-md mx-auto">
+        <header className="flex items-center justify-between my-4">
+          <h1 className="text-2xl font-bold">Hola, soy tu asistente de Papelería Arcoíris 🌈</h1>
+        </header>
 
-      <p className="text-lg mt-2 mb-4">Te ayudamos a realizar tus trámites digitales paso a paso</p>
+        <p className="text-lg mt-2 mb-4">Te ayudamos a realizar tus trámites digitales paso a paso</p>
 
-      <section className="grid grid-cols-1 gap-3">
-        {tramites.map(t => (
-          <Link key={t.id} href={`/tramites/${t.id}`}>
-            <a>
-              <TramiteCard emoji={t.emoji} title={t.title} />
-            </a>
-          </Link>
-        ))}
-      </section>
+        <section className="grid grid-cols-1 gap-3">
+          {tramites.map(t => (
+            <Link key={t.id} href={`/tramites/${t.id}`}>
+              <a>
+                <TramiteCard emoji={t.emoji} title={t.title} />
+              </a>
+            </Link>
+          ))}
+        </section>
 
-      <div className="fixed bottom-6 right-4">
-        <Assistant />
-      </div>
+        <div className="fixed bottom-6 right-4">
+          <Assistant />
+        </div>
 
-      <footer className="mt-8 text-center text-sm text-gray-600">🌈 PAPELERÍA ARCOÍRIS — Fácil y con ayuda</footer>
+        <footer className="mt-8 text-center text-sm text-gray-600">🌈 PAPELERÍA ARCOÍRIS — Fácil y con ayuda</footer>
 
-    </main>
+      </main>
+    </AssistantProvider>
   )
 }
