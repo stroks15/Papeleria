@@ -55,7 +55,15 @@ export default function TramitePage({ params }: { params: { slug: string } }){
               <div className="mt-3 text-sm text-gray-700">Si el sitio oficial muestra un CAPTCHA, te informaremos y no intentaremos resolverlo.</div>
             </form>
           ) : (
-            <div className="text-lg">Para este trámite abriremos el sitio oficial para que sigas las indicaciones. <br/><br/>Sitio oficial: <a className="text-blue-600 underline" href={meta.official} target="_blank" rel="noreferrer">Ir al sitio</a></div>
+            <div className="text-lg">
+              Para este trámite abriremos el sitio oficial para que sigas las indicaciones.
+              <br/><br/>
+              Sitio oficial: {meta.official ? (
+                <a className="text-blue-600 underline" href={meta.official} target="_blank" rel="noopener noreferrer">{meta.official}</a>
+              ) : (
+                'No disponible'
+              )}
+            </div>
           )}
         </div>
       </section>
