@@ -1,8 +1,3 @@
-import { headers } from 'next/headers'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import React from 'react'
-
 const TRAMITES_META: Record<string, { title: string, official?: string }> = {
   'cfe': { title: 'Recibo CFE', official: 'https://app.cfe.mx/Aplicaciones/CCFE/ReciboDeLuzGMX/Consulta' },
   'tenencia-cdmx': { title: 'Tenencia CDMX', official: 'https://data.finanzas.cdmx.gob.mx/Front_ten/' },
