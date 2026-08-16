@@ -1,18 +1,42 @@
-/* eslint-disable */
-import './globals.css'
-import { ReactNode } from 'react'
+import type { Metadata, Viewport } from 'next';
+import { Baloo_2, Inter } from 'next/font/google';
+import './globals.css';
 
-export const metadata = {
-  title: 'PAPELERÍA ARCOÍRIS 🌈',
-  description: 'Asistente de trámites para adultos - Papelería Arcoíris',
-}
+const baloo = Baloo_2({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  variable: '--font-baloo',
+});
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter',
+});
+
+export const metadata: Metadata = {
+  title: 'Papelería Arcoíris',
+  description: 'Te ayudamos a realizar tus trámites fácil y rápido.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es">
-      <body className="bg-gradient-to-b from-pink-50 via-indigo-50 to-yellow-50 text-gray-900">
+      <body
+        className={`${baloo.variable} ${inter.variable} font-body bg-papel text-tinta antialiased`}
+      >
         {children}
       </body>
     </html>
-  )
+  );
 }

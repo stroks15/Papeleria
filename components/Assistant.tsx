@@ -1,62 +1,117 @@
-"use client"
+'use client';
 
-import React, { useState } from 'react'
-import { useAssistant } from '../context/AssistantContext'
+import { useState } from 'react';
+import type { Tramite } from '@/lib/tramites';
+import { nombresPasos } from '@/lib/tramites';
 
-export default function Assistant(){
-  const [open, setOpen] = useState(false)
-  const { messages, sendMessage, resetSession } = useAssistant()
-  const [input, setInput] = useState('')
+type AssistantProps = {
+  modo: 'inicio' | 'tramite';
+  tramite?: Tramite;
+  pasoActual?: number;
+  ayudaCampoActivo?: string;
+};
 
-  const handleSend = async () => {
-    if (!input.trim()) return
-    await sendMessage(input.trim())
-    setInput('')
+export default function Assistant({
+  modo,
+  tramite,
+  pasoActual,
+  ayudaCampoActivo,
+}: AssistantProps) {
+  const [abierto, setAbierto] = useState(false);
+  const [mensaje, setMensaje] = useState<string>(mensajeInicial());
+
+  function mensajeInicial(): string {
+    if (modo === 'inicio') {
+      return 'Hola, soy tu asistente de Papelería Arcoíris. Elige el trámite que necesitas y vamos paso a paso.';
+    }
+    if (tramite && pasoActual) {
+      return `Estamos en el paso ${pasoActual} de 4 de ${tramite.nombre}: ${nombresPasos[pasoActual - 1]}. No te preocupes, te ayudaré.`;
+    }
+    return 'Vamos paso a paso. No te preocupes, te ayudaré.';
+  }
+
+  function responder(tipo: 'no-se' | 'que-sigue' | 'repetir') {
+    if (tipo === 'repetir') {
+      setMensaje(mensajeInicial());
+      return;
+    }
+    if (tipo === 'no-se') {
+      setMensaje(
+        ayudaCampoActivo ??
+          'Llena cada campo con la información que se pide. Si algo no aplica, sigue con el siguiente.'
+      );
+      return;
+    }
+    if (tramite && pasoActual && pasoActual < 4) {
+      setMensaje(`Lo siguiente será: ${nombresPasos[pasoActual]}.`);
+    } else if (tramite && pasoActual === 4) {
+      setMensaje(
+        'Ya casi terminamos: solo falta abrir el sitio oficial y, si te pide más datos, seguimos juntos.'
+      );
+    } else {
+      setMensaje('Elige uno de los trámites de la lista para comenzar.');
+    }
   }
 
   return (
-    <div className="fixed bottom-6 right-4 z-50">
-      {!open ? (
-        <button onClick={() => setOpen(true)} className="btn-large bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full shadow-lg flex items-center gap-3">
-          <span className="text-2xl">🌈</span>
-          <span>ArcoirisAI</span>
-        </button>
-      ) : (
-        <div className="w-80 bg-white rounded-2xl shadow-lg p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-400 to-yellow-300 flex items-center justify-center">🌈</div>
-              <div>
-                <div className="font-semibold">ArcoirisAI Assistant</div>
-                <div className="text-xs text-gray-600">"Vamos paso a paso"</div>
-              </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        aria-label="Abrir asistente"
+        className="fixed bottom-20 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-oficial text-3xl text-carta shadow-lg transition-transform active:scale-95"
+      >
+        🌈
+      </button>
+      {abierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-tinta/30 px-4 pb-4"
+          onClick={() => setAbierto(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-carta p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="font-display text-lg font-bold text-tinta">
+                Tu asistente
+              </span>
+              <button
+                type="button"
+                onClick={() => setAbierto(false)}
+                aria-label="Cerrar"
+                className="text-2xl text-tinta-suave"
+              >
+                ✕
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => { resetSession() }} className="text-sm text-red-600">🔄 Nuevo trámite</button>
-              <button onClick={() => setOpen(false)} className="text-sm text-gray-600">Cerrar</button>
+            <p className="mb-4 text-tinta">{mensaje}</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => responder('no-se')}
+                className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10"
+              >
+                No sé qué poner aquí
+              </button>
+              <button
+                type="button"
+                onClick={() => responder('que-sigue')}
+                className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10"
+              >
+                ¿Qué sigue?
+              </button>
+              <button
+                type="button"
+                onClick={() => responder('repetir')}
+                className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10"
+              >
+                Repetir
+              </button>
             </div>
           </div>
-
-          <div className="mt-3 max-h-64 overflow-y-auto space-y-2">
-            {messages.length === 0 && (
-              <div className="text-sm text-gray-700">Hola, soy tu asistente. Puedes preguntarme qué escribir o cómo seguir.</div>
-            )}
-
-            {messages.map(m => (
-              <div key={m.id} className={`p-2 rounded-lg ${m.from === 'user' ? 'bg-blue-50 text-right' : 'bg-gray-100 text-left'}`}>
-                <div className="text-sm">{m.text}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 flex gap-2">
-            <input value={input} onChange={e => setInput(e.target.value)} placeholder='Ej: "No sé qué poner"' className="flex-1 p-2 rounded-lg border text-lg" />
-            <button onClick={handleSend} className="btn-large bg-green-500 text-white">Enviar</button>
-          </div>
-
-          <div className="mt-2 text-xs text-gray-500">Si ves CAPTCHA en el sitio oficial, te diremos que lo completes manualmente.</div>
         </div>
       )}
-    </div>
-  )
+    </>
+  );
 }
