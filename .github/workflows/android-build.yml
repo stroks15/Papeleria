@@ -1,0 +1,63 @@
+name: Build Android APK
+
+# Compila manualmente el APK de Android desde la web (Next.js) usando
+# Capacitor. Se ejecuta en cada push y también se puede disparar a mano
+# desde la pestaña "Actions" del repositorio.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Exporta la web como sitio estático (Capacitor necesita archivos
+      # estáticos para empaquetarlos dentro de la app nativa).
+      - name: Build web (static export)
+        run: npm run export
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # Crea el proyecto nativo de Android si todavía no existe.
+      - name: Add Android platform (if missing)
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+
+      - name: Sync Capacitor web build
+        run: npx cap sync android
+
+      # Compila el APK de depuración con gradlew.
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build debug APK (gradlew assembleDebug)
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: papeleria-arcoiris-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -5,6 +5,11 @@ import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
+import {
+  abrirWebViewOficial,
+  autocompletarAlCargar,
+  esAppNativa,
+} from '@/lib/capacitorWebView';
 
 function idSesion(): string {
   if (typeof window === 'undefined') return '';
@@ -21,6 +26,8 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [paso, setPaso] = useState(2);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [copiado, setCopiado] = useState<string | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
+  const [errorSitio, setErrorSitio] = useState<string | null>(null);
 
   useEffect(() => {
     registrarEvento(tramite.slug, 'inicio');
@@ -55,6 +62,46 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   }
 
   const todosLosCamposLlenos = tramite.campos.every((c) => valores[c.id]?.trim());
+
+  // Junta los datos del formulario con los de contacto precargados para
+  // inyectarlos en el sitio oficial.
+  function construirDatosAutoCompletado(): Record<string, string> {
+    const datos: Record<string, string> = { ...valores };
+    if (tramite.autofillContacto) {
+      datos.lada = tramite.autofillContacto.lada;
+      datos.telefono = tramite.autofillContacto.telefono;
+      datos.correo = tramite.autofillContacto.correo;
+    }
+    return datos;
+  }
+
+  // Mapeo opcional clave -> selector del sitio oficial. Si el sitio expone
+  // `name`/`id`/`placeholder` igual a la clave del trámite, no hace falta
+  // ponerlo aquí. Ejemplo:
+  //   numeroServicio: 'input[name="NumeroServicio"]'
+  function mapeoSitioOficial(): Record<string, string> {
+    return {};
+  }
+
+  async function abrirSitioOficial() {
+    registrarEvento(tramite.slug, 'completado');
+    setErrorSitio(null);
+    setAbriendo(true);
+
+    try {
+      const id = await abrirWebViewOficial(tramite.urlOficial);
+      if (id) {
+        // Solo en la app nativa: tras cargar la página, inyecta los datos.
+        autocompletarAlCargar(id, construirDatosAutoCompletado(), mapeoSitioOficial());
+      }
+    } catch {
+      setErrorSitio(
+        'No se pudo abrir el sitio oficial. Intenta de nuevo o abre la página con el enlace directo.'
+      );
+    } finally {
+      setAbriendo(false);
+    }
+  }
 
   return (
     <div className="pb-32">
@@ -174,16 +221,42 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
               </p>
             </div>
 
-            <a
-              href={tramite.urlOficial}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => registrarEvento(tramite.slug, 'completado')}
-              className="rounded-2xl py-4 text-center text-lg font-bold text-carta"
+            {esAppNativa() && (
+              <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
+                <p className="font-semibold text-tinta">
+                  Autocompletado automático
+                </p>
+                <p className="mt-1 text-sm text-tinta-suave">
+                  Estás en la app de Android: al abrir el sitio oficial se copiarán
+                  automáticamente tus datos capturados y tus datos de contacto en la
+                  página (en modo escritorio).
+                </p>
+              </div>
+            )}
+
+            {errorSitio && (
+              <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-tinta ring-2 ring-tinta/10">
+                {errorSitio}{' '}
+                <a
+                  href={tramite.urlOficial}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-oficial underline"
+                >
+                  Abrir enlace directo
+                </a>
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={abriendo}
+              onClick={abrirSitioOficial}
+              className="rounded-2xl py-4 text-center text-lg font-bold text-carta disabled:opacity-60"
               style={{ backgroundColor: tramite.colorHex }}
             >
-              Abrir sitio oficial
-            </a>
+              {abriendo ? 'Abriendo…' : 'Abrir sitio oficial'}
+            </button>
 
             <button
               type="button"
