@@ -1,13 +1,15 @@
 {
   "name": "papeleria-arcoiris",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 3000",
-    "lint": "next lint --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+    "start": "next start",
+    "lint": "next lint",
+    "export": "NEXT_EXPORT=1 next build",
+    "cap:sync": "npm run export && npx cap sync android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "next": "13.4.19",

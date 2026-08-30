@@ -5,8 +5,20 @@ node_modules/
 .next/
 out/
 
+# TypeScript
+*.tsbuildinfo
+
 # Production
 .build/
+
+# Capacitor
+# `android/` se genera con `npx cap add android`; se versiona, pero no sus builds.
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/capacitor-cordova-androidexternallibs/
+android/*.iml
 
 # Env files
 .env.local
