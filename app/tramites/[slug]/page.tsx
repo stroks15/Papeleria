@@ -12,6 +12,10 @@ const TRAMITES_META: Record<string, { title: string, official?: string }> = {
   'agua-sacmex': { title: 'Agua SACMEX', official: 'https://aplicaciones.sacmex.cdmx.gob.mx/fut/' },
 }
 
+export function generateStaticParams() {
+  return Object.keys(TRAMITES_META).map((slug) => ({ slug }));
+}
+
 export default function TramitePage({ params }: { params: { slug: string } }){
   const slug = params.slug
   const meta = TRAMITES_META[slug] || { title: 'Trámite' }
