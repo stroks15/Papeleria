@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
+import OfficialSiteModal from './OfficialSiteModal';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
 import {
   abrirWebViewOficial,
@@ -28,6 +29,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [copiado, setCopiado] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
   const [errorSitio, setErrorSitio] = useState<string | null>(null);
+  const [mostrarSitioWeb, setMostrarSitioWeb] = useState(false);
 
   useEffect(() => {
     registrarEvento(tramite.slug, 'inicio');
@@ -89,9 +91,13 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     setAbriendo(true);
 
     try {
+      if (!esAppNativa()) {
+        setMostrarSitioWeb(true);
+        return;
+      }
+
       const id = await abrirWebViewOficial(tramite.urlOficial);
       if (id) {
-        // Solo en la app nativa: tras cargar la página, inyecta los datos.
         autocompletarAlCargar(id, construirDatosAutoCompletado(), mapeoSitioOficial());
       }
     } catch {
@@ -268,6 +274,14 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
           </div>
         )}
       </div>
+
+      {mostrarSitioWeb && (
+        <OfficialSiteModal
+          url={tramite.urlOficial}
+          title={tramite.nombre}
+          onClose={() => setMostrarSitioWeb(false)}
+        />
+      )}
 
       <Assistant
         modo="tramite"

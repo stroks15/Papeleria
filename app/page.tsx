@@ -8,7 +8,7 @@ import Assistant from '../components/Assistant'
 
 export default function Home() {
   const tramites = [
-    { id: 'cfe', title: 'Recibo CFE', emoji: '📄' },
+    { id: 'recibo-cfe', title: 'Recibo CFE', emoji: '📄' },
     { id: 'tenencia-cdmx', title: 'Tenencia CDMX', emoji: '🚗' },
     { id: 'tenencia-edomex', title: 'Tenencia EDOMEX', emoji: '🚙' },
     { id: 'multas-edomex', title: 'Multas EDOMEX', emoji: '⚠️' },
@@ -28,9 +28,7 @@ export default function Home() {
         <section className="grid grid-cols-1 gap-3">
           {tramites.map(t => (
             <Link key={t.id} href={`/tramites/${t.id}`}>
-              <a>
-                <TramiteCard emoji={t.emoji} title={t.title} />
-              </a>
+              <TramiteCard emoji={t.emoji} title={t.title} />
             </Link>
           ))}
         </section>
