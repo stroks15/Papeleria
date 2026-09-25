@@ -27,7 +27,7 @@ export default function Home() {
 
         <section className="grid grid-cols-1 gap-3">
           {tramites.map(t => (
-            <Link key={t.id} href={`/tramites/${t.id}`}>
+            <Link key={t.id} href={`/tramite/${t.id}`}>
               <TramiteCard emoji={t.emoji} title={t.title} />
             </Link>
           ))}
