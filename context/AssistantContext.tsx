@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
+import { Capacitor } from "@capacitor/core"
 import { supabase } from "../lib/supabase"
 
 type Message = { id: string; from: "user" | "assistant"; text: string; createdAt: string }
@@ -41,7 +42,8 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     setMessages(prev => [...prev, userMsg])
 
     try {
-      const res = await fetch("/api/assistant", {
+      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? "https://papeleria-arcoiris.vercel.app" : "")
+      const res = await fetch(`${apiBase}/api/assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, sessionId })
