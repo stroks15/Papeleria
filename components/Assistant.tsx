@@ -4,110 +4,76 @@ import { useState } from 'react';
 import type { Tramite } from '@/lib/tramites';
 import { nombresPasos } from '@/lib/tramites';
 
-type AssistantProps = {
-  modo?: 'inicio' | 'tramite';
-  tramite?: Tramite;
-  pasoActual?: number;
-  ayudaCampoActivo?: string;
-};
+type AssistantProps = { modo?: 'inicio' | 'tramite'; tramite?: Tramite; pasoActual?: number; ayudaCampoActivo?: string };
+type AssistantContext = { currentModule: string; currentStep: string | number };
+type Artifact = { filename: string; mimeType: string; dataBase64: string; size: number };
+type Attachment = { data: string; mimeType: string; name: string };
+type AssistantResponse = { ok: boolean; reply?: string; action?: string; parameters?: Record<string, unknown>; artifact?: Artifact; error?: string };
 
-type AssistantContext = {
-  currentModule: string;
-  currentStep: string | number;
-};
-
-type Artifact = {
-  filename: string;
-  mimeType: string;
-  dataBase64: string;
-  size: number;
-};
-
-type AssistantResponse = {
-  ok: boolean;
-  reply?: string;
-  action?: string;
-  parameters?: Record<string, unknown>;
-  artifact?: Artifact;
-  error?: string;
-};
-
-function dataUrlToBlob(dataUrl: string, mimeType: string) {
-  const binary = atob(dataUrl);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mimeType });
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
-export default function Assistant({
-  modo = 'inicio',
-  tramite,
-  pasoActual,
-  ayudaCampoActivo,
-}: AssistantProps) {
+export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaCampoActivo }: AssistantProps) {
   const [abierto, setAbierto] = useState(false);
   const [mensaje, setMensaje] = useState(mensajeInicial());
   const [entrada, setEntrada] = useState('');
   const [cargando, setCargando] = useState(false);
-  const [imagenes, setImagenes] = useState<string[]>([]);
+  const [adjuntos, setAdjuntos] = useState<Attachment[]>([]);
   const [archivoGenerado, setArchivoGenerado] = useState<Artifact | null>(null);
 
-  function mensajeInicial(): string {
-    if (modo === 'inicio') return 'Hola, soy tu asistente de Papelería Arcoíris. Elige el servicio o trámite que necesitas y vamos paso a paso.';
-    if (tramite && pasoActual) return `Estamos en el paso ${pasoActual} de 4 de ${tramite.nombre}: ${nombresPasos[pasoActual - 1]}. No te preocupes, te ayudaré.`;
-    return 'Vamos paso a paso. No te preocupes, te ayudaré.';
+  function mensajeInicial() {
+    if (modo === 'inicio') return 'Hola. Soy tu asistente de Papelería Arcoíris. Puedo ayudarte con herramientas, documentos y trámites.';
+    if (tramite && pasoActual) return `Paso ${pasoActual} de 4 · ${tramite.nombre} · ${nombresPasos[pasoActual - 1]}. Si tienes una duda, pregúntame aquí.`;
+    return 'Vamos paso a paso. Pregúntame lo que necesites.';
   }
 
   function contextoActual(): AssistantContext {
     return { currentModule: tramite?.nombre ?? modo, currentStep: pasoActual ?? 'inicio' };
   }
 
-  async function seleccionarImagenes(files: FileList | null) {
+  async function seleccionarArchivos(files: FileList | null) {
     if (!files) return;
-    const seleccionadas = Array.from(files).slice(0, 20);
-    const data = await Promise.all(seleccionadas.map((file) => new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    })));
-    setImagenes(data);
+    const selected = Array.from(files).filter((file) => file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')).slice(0, 20);
+    const data = await Promise.all(selected.map(async (file) => ({ data: await readFile(file), mimeType: file.type || 'application/pdf', name: file.name })));
+    setAdjuntos(data);
     setArchivoGenerado(null);
-    setMensaje(`${data.length} imagen(es) listas. Ahora dime, por ejemplo: “hazme un PDF” o “comprime estas fotos”.`);
+    setMensaje(`${data.length} archivo(s) listos. Ahora dime qué quieres que haga la IA con ellos.`);
   }
 
   async function consultarArcoirisAI(mensajeDelUsuario: string) {
     const texto = mensajeDelUsuario.trim();
     if (!texto || cargando) return;
-
     setCargando(true);
     try {
       const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (typeof window !== 'undefined' && window.location.protocol.startsWith('capacitor') ? 'https://papeleria-arcoiris.vercel.app' : '');
       const response = await fetch(apiBase + '/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: texto, context: contextoActual(), images: imagenes }),
+        body: JSON.stringify({
+          message: texto,
+          context: contextoActual(),
+          images: adjuntos.filter((x) => x.mimeType.startsWith('image/')).map((x) => x.data),
+          files: adjuntos,
+        }),
       });
       const data: AssistantResponse = await response.json();
-
       if (!response.ok || !data.ok) {
-        setMensaje(data.error || 'No pude procesar tu solicitud. Intenta de nuevo.');
+        setMensaje(data.error || 'No pude procesar tu solicitud.');
         return;
       }
-
-      setMensaje(data.reply || 'Listo. Te ayudo con el siguiente paso.');
+      setMensaje(data.reply || 'Listo.');
       if (data.artifact) setArchivoGenerado(data.artifact);
-
-      if (data.action && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('arcoiris:assistant-action', {
-          detail: { action: data.action, parameters: data.parameters ?? {} },
-        }));
-      }
+      if (data.action && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('arcoiris:assistant-action', { detail: { action: data.action, parameters: data.parameters ?? {} } }));
       setEntrada('');
-      if (data.artifact) setImagenes([]);
-    } catch (error) {
-      console.error('Error al consultar ArcoirisAI:', error);
-      setMensaje('Perdón, no pude conectar con ArcoirisAI. Revisa que las APIs estén configuradas.');
+      if (data.artifact) setAdjuntos([]);
+    } catch {
+      setMensaje('No pude conectar con ArcoirisAI. Intenta de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -121,9 +87,8 @@ export default function Assistant({
 
   function descargarArtifact() {
     if (!archivoGenerado) return;
-    const url = `data:${archivoGenerado.mimeType};base64,${archivoGenerado.dataBase64}`;
     const link = document.createElement('a');
-    link.href = url;
+    link.href = `data:${archivoGenerado.mimeType};base64,${archivoGenerado.dataBase64}`;
     link.download = archivoGenerado.filename;
     document.body.appendChild(link);
     link.click();
@@ -132,43 +97,45 @@ export default function Assistant({
 
   return (
     <>
-      <button type="button" onClick={() => setAbierto(true)} aria-label="Abrir asistente" className="fixed bottom-20 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-oficial text-3xl text-carta shadow-lg transition-transform active:scale-95">🌈</button>
+      <button type="button" onClick={() => setAbierto(true)} aria-label="Abrir asistente" className="fixed bottom-20 right-4 z-40 flex h-[68px] w-[68px] items-center justify-center rounded-full border-4 border-white bg-oficial text-4xl text-white shadow-[0_8px_28px_rgba(0,0,0,.35)]">
+        🌈
+      </button>
 
       {abierto && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-tinta/30 px-4 pb-4" onClick={() => setAbierto(false)}>
-          <div className="w-full max-w-md rounded-3xl bg-carta p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <span className="font-display text-lg font-bold text-tinta">Tu asistente IA</span>
-              <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar" className="text-2xl text-tinta-suave">✕</button>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-3 pb-3" onClick={() => setAbierto(false)}>
+          <div className="w-full max-w-md rounded-[28px] border-2 border-tinta/10 bg-carta p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <span className="block font-display text-xl font-bold text-tinta">ArcoirisAI</span>
+                <span className="text-xs font-semibold text-tinta-suave">Gemini + Groq · ayuda en tu trámite</span>
+              </div>
+              <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar asistente" className="rounded-full bg-papel px-4 py-2 text-xl font-black text-tinta shadow-sm">✕</button>
             </div>
 
-            <p className="mb-4 text-tinta" aria-live="polite">{mensaje}</p>
+            <div className="mb-4 max-h-48 overflow-y-auto rounded-2xl border-2 border-tinta/10 bg-white p-4 text-base font-medium leading-6 text-tinta" aria-live="polite">{mensaje}</div>
 
-            <label className="mb-3 block rounded-2xl border-2 border-dashed border-tinta/10 bg-papel px-4 py-3 text-center text-sm font-semibold text-tinta cursor-pointer">
-              📷 Agregar fotos para IA
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => void seleccionarImagenes(e.target.files)} />
+            <label className="mb-3 block cursor-pointer rounded-2xl border-2 border-dashed border-oficial bg-papel px-4 py-4 text-center text-sm font-bold text-tinta">
+              📎 Adjuntar imágenes o PDF a la IA
+              <input type="file" accept="image/*,application/pdf,.pdf" multiple className="sr-only" onChange={(e) => void seleccionarArchivos(e.target.files)} />
             </label>
-
-            {imagenes.length > 0 && (
-              <p className="mb-3 text-xs text-tinta-suave">{imagenes.length} imagen(es) adjuntas.</p>
-            )}
+            {adjuntos.length > 0 && <p className="mb-3 rounded-xl bg-papel px-3 py-2 text-xs font-semibold text-tinta">{adjuntos.length} archivo(s) adjunto(s).</p>}
 
             {archivoGenerado && (
-              <div className="mb-3 rounded-2xl bg-papel p-3">
-                <p className="text-sm font-semibold text-tinta">Archivo listo: {archivoGenerado.filename}</p>
-                <button type="button" onClick={descargarArtifact} className="mt-2 rounded-xl bg-oficial px-4 py-2 text-sm font-bold text-carta">Descargar</button>
+              <div className="mb-3 rounded-2xl border-2 border-tinta/10 bg-papel p-3">
+                <p className="text-sm font-bold text-tinta">Archivo listo: {archivoGenerado.filename}</p>
+                <button type="button" onClick={descargarArtifact} className="mt-2 rounded-xl bg-oficial px-4 py-2 text-sm font-bold text-white">Descargar</button>
               </div>
             )}
 
             <div className="mb-3 flex gap-2">
-              <input value={entrada} onChange={(e) => setEntrada(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void consultarArcoirisAI(entrada); }} placeholder="Escribe qué necesitas…" className="min-w-0 flex-1 rounded-full bg-papel px-4 py-2 text-sm text-tinta outline-none ring-1 ring-tinta/10 focus:ring-2 focus:ring-oficial" aria-label="Mensaje para ArcoirisAI" />
-              <button type="button" onClick={() => void consultarArcoirisAI(entrada)} disabled={cargando || !entrada.trim()} className="rounded-full bg-oficial px-4 py-2 text-sm font-bold text-carta disabled:opacity-50">{cargando ? '…' : 'Enviar'}</button>
+              <input value={entrada} onChange={(e) => setEntrada(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void consultarArcoirisAI(entrada); }} placeholder="Escribe tu pregunta…" className="min-w-0 flex-1 rounded-full border-2 border-tinta/10 bg-white px-4 py-3 text-base text-tinta outline-none focus:border-oficial" aria-label="Mensaje para ArcoirisAI" />
+              <button type="button" onClick={() => void consultarArcoirisAI(entrada)} disabled={cargando || !entrada.trim()} className="rounded-full bg-oficial px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{cargando ? '…' : 'Enviar'}</button>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => responder('no-se')} disabled={cargando} className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10">No sé qué poner aquí</button>
-              <button type="button" onClick={() => responder('que-sigue')} disabled={cargando} className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10">¿Qué sigue?</button>
-              <button type="button" onClick={() => responder('repetir')} disabled={cargando} className="rounded-full bg-papel px-4 py-2 text-sm font-medium text-tinta ring-1 ring-tinta/10">Repetir</button>
+              <button type="button" onClick={() => responder('no-se')} disabled={cargando} className="rounded-full border border-tinta/10 bg-papel px-3 py-2 text-sm font-bold text-tinta">No sé qué poner</button>
+              <button type="button" onClick={() => responder('que-sigue')} disabled={cargando} className="rounded-full border border-tinta/10 bg-papel px-3 py-2 text-sm font-bold text-tinta">¿Qué sigue?</button>
+              <button type="button" onClick={() => responder('repetir')} disabled={cargando} className="rounded-full border border-tinta/10 bg-papel px-3 py-2 text-sm font-bold text-tinta">Repetir</button>
             </div>
           </div>
         </div>
