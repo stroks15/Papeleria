@@ -5,131 +5,106 @@ import { executeAssistantTool, type ToolArtifact } from '@/lib/server/assistantT
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const GEMINI_REQUESTED_MODEL = process.env.GEMINI_AI_MODEL || 'gemini-3.8-flash';
-const GEMINI_FALLBACK_MODEL = process.env.GEMINI_AI_FALLBACK_MODEL || 'gemini-3.8-flash';
-const GROQ_REQUESTED_MODEL = process.env.GROQ_AI_MODEL || 'openai/gpt-oss-20b';
-const GROQ_FALLBACK_MODEL = process.env.GROQ_AI_FALLBACK_MODEL || 'openai/gpt-oss-20b';
-
+const GEMINI_MODEL = process.env.GEMINI_AI_MODEL || 'gemini-3.8-flash';
+const GROQ_MODEL = process.env.GROQ_AI_MODEL || 'qwen/qwen3.8-27b';
 const MAX_IMAGES = 20;
 const MAX_IMAGE_CHARS = 8_000_000;
+const MAX_FILE_CHARS = 70_000_000;
 
-const TOOL_NAMES = [
+const LOCAL_ACTIONS = new Set([
   'create_pdf_from_photos',
   'scan_to_pdf',
-  'compress_images',
-  'create_cheatsheet',
-  'research_topic',
+  'compress_pdf',
+  'restore_photo',
   'create_id_photos',
-  'help_user',
-  'open_government_procedure',
-  'reset_procedure',
-  'go_back',
-  'go_home',
-];
+]);
 
 const FUNCTION_DECLARATIONS = [
-  {
-    name: 'create_pdf_from_photos',
-    description: 'Empaqueta una o varias fotos del usuario en un PDF descargable.',
-    parameters: { type: Type.OBJECT, properties: { images: { type: Type.ARRAY, items: { type: Type.STRING } } } },
-  },
-  {
-    name: 'scan_to_pdf',
-    description: 'Une varias imágenes escaneadas en un PDF descargable.',
-    parameters: { type: Type.OBJECT, properties: { images: { type: Type.ARRAY, items: { type: Type.STRING } } } },
-  },
-  {
-    name: 'compress_images',
-    description: 'Comprime imágenes del usuario en el backend usando Sharp.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        quality: { type: Type.NUMBER, description: 'Calidad JPEG de 35 a 90.' },
-        maxWidth: { type: Type.NUMBER },
-        maxHeight: { type: Type.NUMBER },
-        images: { type: Type.ARRAY, items: { type: Type.STRING } },
-      },
-    },
-  },
-  {
-    name: 'create_cheatsheet',
-    description: 'Prepara un resumen visual o guía de estudio a partir de texto.',
-    parameters: { type: Type.OBJECT, properties: { topic: { type: Type.STRING } }, required: ['topic'] },
-  },
-  {
-    name: 'research_topic',
-    description: 'Organiza una investigación breve y clara sobre un tema solicitado.',
-    parameters: { type: Type.OBJECT, properties: { topic: { type: Type.STRING } }, required: ['topic'] },
-  },
-  {
-    name: 'create_id_photos',
-    description: 'Prepara fotos tipo credencial; el recorte final puede ejecutarse localmente con Canvas.',
-    parameters: { type: Type.OBJECT, properties: { size: { type: Type.STRING } } },
-  },
-  {
-    name: 'help_user',
-    description: 'Explica cómo usar Papelería Arcoíris.',
-    parameters: { type: Type.OBJECT, properties: { topic: { type: Type.STRING } } },
-  },
-  {
-    name: 'open_government_procedure',
-    description: 'Indica que debe abrirse el trámite oficial seleccionado.',
-    parameters: { type: Type.OBJECT, properties: {} },
-  },
-  {
-    name: 'reset_procedure',
-    description: 'Inicia un trámite nuevo.',
-    parameters: { type: Type.OBJECT, properties: {} },
-  },
-  {
-    name: 'go_back',
-    description: 'Regresa al paso anterior.',
-    parameters: { type: Type.OBJECT, properties: {} },
-  },
-  {
-    name: 'go_home',
-    description: 'Regresa al inicio.',
-    parameters: { type: Type.OBJECT, properties: {} },
-  },
+  { name: 'create_pdf_from_photos', description: 'Convierte las fotos adjuntas en un PDF.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'scan_to_pdf', description: 'Une fotos de documentos en un PDF.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'compress_pdf', description: 'Optimiza el PDF adjunto para compartirlo.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'restore_photo', description: 'Restaura la foto adjunta mejorando orientación, contraste y nitidez.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'create_id_photos', description: 'Prepara una hoja de 9 fotos tipo credencial a partir de la foto adjunta.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'create_cheatsheet', description: 'Crea un resumen visual de estudio.', parameters: { type: Type.OBJECT, properties: { topic: { type: Type.STRING } }, required: ['topic'] } },
+  { name: 'research_topic', description: 'Organiza una investigación clara.', parameters: { type: Type.OBJECT, properties: { topic: { type: Type.STRING } }, required: ['topic'] } },
+  { name: 'create_local_ad', description: 'Prepara contenido para un anuncio.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'create_flashcards', description: 'Crea tarjetas de estudio.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'create_print_order', description: 'Prepara un pedido de impresión.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'create_reminder', description: 'Organiza un recordatorio.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'fill_form', description: 'Ayuda a llenar un formato paso a paso.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'open_government_procedure', description: 'Indica cómo continuar con el trámite oficial seleccionado.', parameters: { type: Type.OBJECT, properties: {} } },
+  { name: 'help_user', description: 'Ayuda a usar Papelería Arcoíris.', parameters: { type: Type.OBJECT, properties: {} } },
 ];
 
-const SYSTEM_PROMPT = `Eres ArcoirisAI, asistente de Papelería Arcoíris. Ayuda en español, de forma clara y breve. Puedes usar herramientas locales para documentos e imágenes. Nunca inventes resultados, nunca ejecutes código arbitrario y nunca intentes saltarte CAPTCHA, autenticación o controles de seguridad. Para una operación que requiere una imagen, usa las imágenes adjuntas al usuario. Acciones permitidas: ${TOOL_NAMES.join(', ')}.`;
+const SYSTEM_PROMPT = `Eres ArcoirisAI, asistente de Papelería Arcoíris. Responde en español, claro y práctico. Puedes analizar imágenes y PDFs adjuntos. Nunca inventes datos, nunca saltes CAPTCHA, autenticación o controles de seguridad. Si el usuario adjunta un documento, usa su contenido. Si el contexto indica requestedAction, esa es la función que debes realizar. Para trámites, explica los datos que el usuario debe capturar y conserva el progreso localmente.`;
 
+type FileInput = { data: string; mimeType: string; name: string };
 type Body = {
   message?: string;
-  context?: { currentModule?: string; currentStep?: string | number };
+  context?: { currentModule?: string; currentStep?: string | number; requestedAction?: string };
   images?: string[];
+  files?: FileInput[];
 };
 
-function isResearch(name: string) {
-  return name === 'research_topic' || name === 'create_cheatsheet';
+function extractText(response: any): string {
+  return response?.text || response?.output_text || response?.choices?.[0]?.message?.content || '';
 }
 
-async function groqText(message: string, context: Body['context'], toolSummary?: unknown) {
-  if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY no configurada.');
-  const models = [GROQ_REQUESTED_MODEL, GROQ_FALLBACK_MODEL].filter((v, i, a) => a.indexOf(v) === i);
-  let lastError = '';
-  for (const model of models) {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 700,
-        messages: [
-          { role: 'system', content: `${SYSTEM_PROMPT} Para investigación/resumen, entrega una respuesta práctica sin afirmar que navegaste la web si no lo hiciste. Contexto: ${JSON.stringify(context || {})}.` },
-          { role: 'user', content: toolSummary ? `${message}\nResultado de herramienta: ${JSON.stringify(toolSummary)}` : message },
-        ],
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return { reply: data.choices?.[0]?.message?.content || 'Listo.', model };
-    }
-    lastError = await res.text();
+async function groqReview(message: string, draft: string, images: string[], context: Body['context']) {
+  if (!process.env.GROQ_API_KEY) return null;
+  const content: any[] = [{
+    type: 'text',
+    text: `${SYSTEM_PROMPT}
+Revisa la respuesta de otra IA para la función "${context?.requestedAction || 'asistente'}".
+Usuario: ${message}
+Borrador de Gemini: ${draft}
+Corrige errores, omisiones o instrucciones confusas. Devuelve sólo una respuesta final útil para el usuario.`,
+  }];
+  for (const image of images.slice(0, 3)) {
+    content.push({ type: 'image_url', image_url: { url: image } });
   }
-  throw new Error(`Groq no disponible: ${lastError.slice(0, 300)}`);
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.2,
+      max_completion_tokens: 900,
+      messages: [{ role: 'user', content }],
+    }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return extractText(data);
+}
+
+async function geminiGenerate(message: string, context: Body['context'], images: string[], files: FileInput[]) {
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY no configurada.');
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const parts: any[] = [{
+    text: `${SYSTEM_PROMPT}
+Contexto: ${JSON.stringify(context || {})}
+Usuario: ${message}`,
+  }];
+
+  for (const image of images.slice(0, MAX_IMAGES)) {
+    const match = image.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+  }
+  for (const file of files.slice(0, 5)) {
+    const match = file.data.match(/^data:([^;]+);base64,(.+)$/);
+    if (match && (file.mimeType === 'application/pdf' || file.mimeType.startsWith('text/'))) {
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+  }
+
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: [{ role: 'user', parts }],
+    config: { tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }] },
+  });
+  return response;
 }
 
 export async function POST(req: Request) {
@@ -137,109 +112,68 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body;
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const images = Array.isArray(body.images)
-      ? body.images
-          .filter((x): x is string => typeof x === 'string' && x.startsWith('data:image/'))
-          .filter((x) => x.length <= MAX_IMAGE_CHARS)
-          .slice(0, MAX_IMAGES)
+      ? body.images.filter((x): x is string => typeof x === 'string' && x.startsWith('data:image/')).slice(0, MAX_IMAGES)
       : [];
+    const files = Array.isArray(body.files)
+      ? body.files.filter((x): x is FileInput => !!x && typeof x.data === 'string' && typeof x.mimeType === 'string' && typeof x.name === 'string').slice(0, 5)
+      : [];
+    const requestedAction = body.context?.requestedAction;
+
     if (!message) return NextResponse.json({ ok: false, error: 'Falta el mensaje.' }, { status: 400 });
+    if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) return NextResponse.json({ ok: false, error: 'Configura GEMINI_API_KEY o GROQ_API_KEY en Vercel.' }, { status: 500 });
+    if (images.some((x) => x.length > MAX_IMAGE_CHARS)) return NextResponse.json({ ok: false, error: 'Una imagen supera el tamaño permitido.' }, { status: 413 });
+    if (files.some((x) => x.data.length > MAX_FILE_CHARS)) return NextResponse.json({ ok: false, error: 'Un archivo supera el tamaño permitido.' }, { status: 413 });
 
-    if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
-      return NextResponse.json({ ok: false, error: 'Configura GEMINI_API_KEY o GROQ_API_KEY en el entorno del servidor.' }, { status: 500 });
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      const fallback = await groqText(message, body.context);
-      return NextResponse.json({ ok: true, ...fallback, action: 'help_user', parameters: {} });
-    }
-
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const parts: Array<Record<string, unknown>> = [{ text: `${SYSTEM_PROMPT}\nContexto: ${JSON.stringify(body.context || {})}\nUsuario: ${message}` }];
-    for (const image of images) {
-      const match = image.match(/^data:(image\\/[^;]+);base64,(.+)$/);
-      if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-    }
-
-    const contents: any[] = [{ role: 'user', parts }];
-    const models = [GEMINI_REQUESTED_MODEL, GEMINI_FALLBACK_MODEL].filter((v, i, a) => a.indexOf(v) === i);
-    let response: any = null;
-    let model = models[0];
-
-    for (const candidate of models) {
-      try {
-        response = await ai.models.generateContent({
-          model: candidate,
-          contents,
-          config: { tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }] },
-        });
-        model = candidate;
-        break;
-      } catch (error) {
-        console.warn(`Gemini ${candidate} falló; intentando siguiente modelo.`, error);
-      }
-    }
-
-    if (!response) {
-      if (process.env.GROQ_API_KEY) {
-        const fallback = await groqText(message, body.context);
-        return NextResponse.json({
-          ok: true,
-          ...fallback,
-          action: 'help_user',
-          parameters: {},
-          fallback: 'groq',
-        });
-      }
-      throw new Error('Gemini no pudo procesar la solicitud.');
-    }
-
-    const calls = response.functionCalls || [];
-    if (!calls.length) {
-      return NextResponse.json({ ok: true, reply: response.text || 'Listo.', action: 'help_user', parameters: {}, model });
-    }
-
-    const call = calls[0];
-    const action = call.name;
-    if (!TOOL_NAMES.includes(action)) return NextResponse.json({ ok: false, error: 'La acción solicitada no está permitida.' }, { status: 502 });
-
-    const args = (call.args || {}) as Record<string, unknown>;
-
-    if (isResearch(action) && process.env.GROQ_API_KEY) {
-      const groq = await groqText(message, body.context);
-      return NextResponse.json({ ok: true, reply: groq.reply, action, parameters: args, model: groq.model });
-    }
-
-    const local = ['create_pdf_from_photos', 'scan_to_pdf', 'compress_images'].includes(action);
     let artifact: ToolArtifact | undefined;
-    let summary: unknown = { action, completed: false };
+    let toolSummary: unknown = null;
 
-    if (local) {
-      const result = await executeAssistantTool(action, args, images);
-      summary = result.summary;
+    if (requestedAction && LOCAL_ACTIONS.has(requestedAction)) {
+      const result = await executeAssistantTool(requestedAction, {}, images, files);
       artifact = result.artifact;
+      toolSummary = result.summary;
     }
 
-    const history = [...contents, response.candidates?.[0]?.content].filter(Boolean);
-    if (local) {
-      history.push({
-        role: 'user',
-        parts: [{
-          functionResponse: {
-            id: call.id,
-            name: action,
-            response: { result: summary },
-          },
-        }],
-      });
-      const finalResponse = await ai.models.generateContent({
-        model,
-        contents: history,
-        config: { tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }] },
-      });
-      return NextResponse.json({ ok: true, reply: finalResponse.text || 'Listo. La herramienta terminó correctamente.', action, parameters: args, model, artifact });
+    let draft = '';
+    let model = GEMINI_MODEL;
+
+    if (process.env.GEMINI_API_KEY) {
+      const response = await geminiGenerate(message, body.context, images, files);
+      draft = extractText(response);
+      const call = response.functionCalls?.[0];
+      if (!requestedAction && call?.name && LOCAL_ACTIONS.has(call.name)) {
+        const result = await executeAssistantTool(call.name, (call.args || {}) as Record<string, unknown>, images, files);
+        artifact = result.artifact;
+        toolSummary = result.summary;
+      }
     }
 
-    return NextResponse.json({ ok: true, reply: response.text || 'Listo.', action, parameters: args, model, artifact });
+    if (!draft && process.env.GROQ_API_KEY) {
+      const groq = await groqReview(message, '', images, body.context);
+      draft = groq || '';
+      model = GROQ_MODEL;
+    } else if (draft && images.length && process.env.GROQ_API_KEY) {
+      const reviewed = await groqReview(message, draft, images, body.context);
+      if (reviewed) {
+        draft = reviewed;
+        model = `${GEMINI_MODEL} + ${GROQ_MODEL}`;
+      }
+    }
+
+    if (!draft) draft = toolSummary ? 'Listo. La herramienta terminó correctamente.' : 'Listo. Te ayudo con el siguiente paso.';
+
+    if (toolSummary) {
+      const suffix = typeof toolSummary === 'object' ? `\n\nResultado: ${JSON.stringify(toolSummary)}` : '';
+      if (!draft.includes('Resultado:')) draft += suffix;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      reply: draft,
+      action: requestedAction || 'help_user',
+      parameters: {},
+      model,
+      artifact,
+    });
   } catch (error) {
     console.error('ArcoirisAI error:', error);
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Error interno de ArcoirisAI.' }, { status: 500 });
