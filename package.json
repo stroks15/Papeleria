@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "export": "NEXT_EXPORT=1 next build",
-    "cap:sync": "npm run export && npx cap sync android",
-    "android:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
+    "cap:sync": "npm run export:android && npx cap sync android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "export:android": "node scripts/export-android.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
