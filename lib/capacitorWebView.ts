@@ -25,7 +25,15 @@ export async function abrirWebViewOficial(url: string): Promise<string | null> {
     return null;
   }
 
-  const host = new URL(url).hostname;\n  // Este portal rechaza algunos WebViews embebidos. Chrome Custom Tabs lo abre como navegador de primer nivel.\n  if (host === 'infracciones.ssedomex.gob.mx') {\n    await InAppBrowser.open({ url, showTitle: true });\n    return null;\n  }\n\n  const { id } = await InAppBrowser.openWebView({
+  const host = new URL(url).hostname;
+  // Este portal rechaza algunos WebViews embebidos. Ábrelo como navegador
+  // de primer nivel para evitar X-Frame/CSP y mantener CAPTCHA funcional.
+  if (host === 'infracciones.ssedomex.gob.mx') {
+    await InAppBrowser.open({ url, showTitle: true });
+    return null;
+  }
+
+  const { id } = await InAppBrowser.openWebView({
     url,
     title: 'Sitio oficial',
     toolbarType: ToolBarType.NAVIGATION, // barra con retroceder/avanzar/cerrar
