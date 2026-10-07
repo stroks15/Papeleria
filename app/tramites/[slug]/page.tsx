@@ -1,10 +1,6 @@
-import { headers } from 'next/headers'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import React from 'react'
 
 const TRAMITES_META: Record<string, { title: string, official?: string }> = {
-  'cfe': { title: 'Recibo CFE', official: 'https://app.cfe.mx/Aplicaciones/CCFE/ReciboDeLuzGMX/Consulta' },
+  'recibo-cfe': { title: 'Recibo CFE', official: 'https://app.cfe.mx/Aplicaciones/CCFE/ReciboDeLuzGMX/Consulta' },
   'tenencia-cdmx': { title: 'Tenencia CDMX', official: 'https://data.finanzas.cdmx.gob.mx/Front_ten/' },
   'tenencia-edomex': { title: 'Tenencia EDOMEX', official: 'https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/#/' },
   'multas-edomex': { title: 'Multas EDOMEX', official: 'https://infracciones.ssedomex.gob.mx/Search' },
