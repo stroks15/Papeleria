@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Browser } from '@capacitor/browser';
+import { abrirSitioOficial } from '@/lib/officialBrowser';
 
 type Props = { url: string; title: string; onClose: () => void };
 
@@ -18,11 +18,9 @@ export default function OfficialSiteModal({ url, title, onClose }: Props) {
 
   async function abrirSitio() {
     try {
-      await Browser.open({ url, toolbarColor: '#1F4E79' });
+      await abrirSitioOficial(url);
       onClose();
-    } catch {
-      // En web, si el navegador bloquea la ventana, dejamos el modal abierto.
-    }
+    } catch {}
   }
 
   return (
@@ -38,13 +36,8 @@ export default function OfficialSiteModal({ url, title, onClose }: Props) {
         <div className="flex flex-1 flex-col justify-center gap-4 bg-white p-6 text-center">
           <div className="text-5xl">🏛️</div>
           <h2 className="text-xl font-bold text-tinta">Abrir sitio oficial</h2>
-          <p className="text-sm leading-6 text-tinta-suave">
-            Este portal no permite mostrarse dentro de una ventana incrustada. Para evitar el error
-            “rechazó la conexión”, Papelería Arcoíris lo abrirá como página principal en tu navegador.
-          </p>
-          <button type="button" onClick={abrirSitio} className="rounded-2xl bg-oficial py-4 font-bold text-carta">
-            Continuar al sitio oficial
-          </button>
+          <p className="text-sm leading-6 text-tinta-suave">El portal se abrirá dentro de la APK. Tus datos capturados permanecen guardados en este trámite.</p>
+          <button type="button" onClick={abrirSitio} className="rounded-2xl bg-oficial py-4 font-bold text-carta">Continuar al sitio oficial</button>
           <p className="text-xs text-tinta-suave break-all">{url}</p>
         </div>
       </div>
