@@ -40,5 +40,6 @@
   "engines": {
     "node": ">=22 <25"
   },
-  "packageManager": "npm@10.9.9"
+  "packageManager": "npm@10.9.9",
+  "description": "Aplicación móvil de Papelería Arcoíris para trámites y herramientas con IA"
 }
