@@ -19,6 +19,7 @@ export default function ServicioPage({ params }: { params: { id: string } }) {
     )
   }
 
+  const servicioActual = servicio;
   async function iniciarServicio() {
     setCargando(true)
     try {
@@ -26,11 +27,11 @@ export default function ServicioPage({ params }: { params: { id: string } }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: mensaje.trim() || `Quiero usar el servicio: ${servicio.title}`,
+          message: mensaje.trim() || `Quiero usar el servicio: ${servicioActual.title}`,
           context: {
-            currentModule: servicio.id,
+            currentModule: servicioActual.id,
             currentStep: 'inicio',
-            requestedAction: servicio.action,
+            requestedAction: servicioActual.action,
           },
         }),
       })
@@ -50,11 +51,11 @@ export default function ServicioPage({ params }: { params: { id: string } }) {
       <section className="mt-4 rounded-3xl bg-carta p-5 shadow-sm ring-1 ring-tinta/5">
         <div className="flex items-center gap-4">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-papel text-3xl" aria-hidden>
-            {servicio.emoji}
+            {servicioActual.emoji}
           </span>
           <div>
-            <h1 className="text-2xl font-bold text-tinta">{servicio.title}</h1>
-            <p className="text-sm text-tinta-suave">{servicio.description}</p>
+            <h1 className="text-2xl font-bold text-tinta">{servicioActual.title}</h1>
+            <p className="text-sm text-tinta-suave">{servicioActual.description}</p>
           </div>
         </div>
 
@@ -65,7 +66,7 @@ export default function ServicioPage({ params }: { params: { id: string } }) {
           id="mensaje-servicio"
           value={mensaje}
           onChange={event => setMensaje(event.target.value)}
-          placeholder={`Cuéntame qué necesitas para ${servicio.title.toLowerCase()}...`}
+          placeholder={`Cuéntame qué necesitas para ${servicioActual.title.toLowerCase()}...`}
           className="mt-2 min-h-28 w-full rounded-2xl bg-papel p-3 text-tinta outline-none ring-1 ring-tinta/10 focus:ring-2 focus:ring-oficial"
         />
 
@@ -86,4 +87,9 @@ export default function ServicioPage({ params }: { params: { id: string } }) {
       </section>
     </main>
   )
+}
+
+
+export function generateStaticParams() {
+  return aiServicios.map((servicio) => ({ id: servicio.id }));
 }
