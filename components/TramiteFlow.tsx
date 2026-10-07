@@ -45,17 +45,24 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   useEffect(() => {
     if (!esAppNativa()) return;
 
+    let disposed = false;
     let cleanup: (() => Promise<void>) | undefined;
+
     void escucharCierreSitioOficial(() => {
       const draft = cargarBorrador(tramite.slug);
-      if (!draft) return;
+      if (!draft || disposed) return;
       setValores(draft.valores);
       setPaso(Math.min(4, Math.max(2, draft.paso)));
     }).then((remove) => {
+      if (disposed) {
+        void remove();
+        return;
+      }
       cleanup = remove;
     });
 
     return () => {
+      disposed = true;
       if (cleanup) void cleanup();
     };
   }, [tramite.slug]);
