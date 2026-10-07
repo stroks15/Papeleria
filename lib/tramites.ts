@@ -49,11 +49,8 @@ export const tramites: Tramite[] = [
           'Este campo corresponde al número de servicio. Puedes encontrarlo en tu recibo anterior.',
       },
     ],
-    autofillContacto: {
-      lada: '55',
-      telefono: '57445419',
-      correo: 'dexterh4ck@gmail.com',
-    },
+    // Los datos de contacto se capturan en el dispositivo; no se almacenan
+    // valores personales dentro del código fuente.
   },
   {
     slug: 'tenencia-cdmx',
