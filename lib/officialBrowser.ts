@@ -13,7 +13,7 @@ const ALLOWED_HOSTS = [
 ];
 
 function hostPermitido(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/\\.$/, '');
+  const host = hostname.toLowerCase().replace(/\.$/, '');
   return (
     ALLOWED_HOSTS.includes(host) ||
     host.endsWith('.gob.mx') ||
