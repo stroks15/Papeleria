@@ -150,9 +150,11 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                 <input
                   type="text"
                   value={valores[campo.id] ?? ''}
-                  onChange={(e) => actualizarCampo(campo.id, e.target.value)}
+                  onChange={(e) => actualizarCampo(campo.id, campo.id.toLowerCase().includes('placa') ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) : e.target.value)}
                   placeholder={campo.placeholder}
-                  className="rounded-2xl border-2 border-tinta/10 bg-carta px-4 py-3.5 text-lg text-tinta outline-none focus:border-oficial"
+                  inputMode={campo.id.toLowerCase().includes('numero') || campo.id === 'cuenta' ? 'numeric' : 'text'}
+                  autoCapitalize={campo.id.toLowerCase().includes('placa') ? 'characters' : 'sentences'}
+                  className="rounded-2xl border-2 border-tinta/15 bg-carta px-4 py-3.5 text-lg font-medium text-tinta outline-none focus:border-oficial focus:ring-2 focus:ring-oficial/20"
                 />
               </label>
             ))}
@@ -230,6 +232,24 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                 />
               </div>
             )}
+
+            <div className="rounded-3xl border-2 border-oficial/20 bg-carta p-4 shadow-sm">
+              <p className="font-semibold text-tinta">Datos listos para el portal oficial</p>
+              <p className="mt-1 text-sm text-tinta-suave">
+                Antes de abrir el portal puedes copiar cada dato. Si el portal no admite autollenado automático, sólo pégalo en su campo correspondiente.
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {tramite.campos.map((campo) => (
+                  <BotonCopiar
+                    key={campo.id}
+                    etiqueta={campo.etiqueta}
+                    valor={valores[campo.id] || 'Sin dato'}
+                    copiado={copiado === campo.id}
+                    onCopiar={() => copiar(valores[campo.id] || '', campo.id)}
+                  />
+                ))}
+              </div>
+            </div>
 
             <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
               <p className="font-semibold text-tinta">
