@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import Link from 'next/link';
 import type { AIServicio } from '@/lib/ai-services';
 
@@ -12,7 +13,8 @@ export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
   async function iniciarServicio() {
     setCargando(true);
     try {
-      const res = await fetch('/api/assistant', {
+      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : '');
+      const res = await fetch(`${apiBase}/api/assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
