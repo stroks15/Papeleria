@@ -86,8 +86,8 @@ export function useAssistant() {
 }
 
 async function supabaseSaveHistoryIfPossible(payload: { sessionId: string; userMessage: string; assistantReply: string }){
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
-  // call a table insert via public anon key - this is example code and depends on your Supabase rules
+  if (!supabase || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
+  // El historial es opcional: nunca debe bloquear al asistente si Supabase no está configurado.
   try {
     await supabase.from('historial').insert({ nota: JSON.stringify({ user: payload.userMessage, assistant: payload.assistantReply, session: payload.sessionId }) })
   } catch (e) {
