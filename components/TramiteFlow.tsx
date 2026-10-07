@@ -7,7 +7,7 @@ import Assistant from './Assistant';
 import OfficialSiteModal from './OfficialSiteModal';
 import { cargarBorrador, guardarBorrador, borrarBorrador } from '@/lib/tramiteDraft';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
-import { abrirSitioOficial, esAppNativa } from '@/lib/officialBrowser';
+import { abrirSitioOficial, escucharCierreSitioOficial, esAppNativa } from '@/lib/officialBrowser';
 
 function idSesion(): string {
   if (typeof window === 'undefined') return '';
@@ -41,6 +41,24 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     // Solo al entrar al trámite.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!esAppNativa()) return;
+
+    let cleanup: (() => Promise<void>) | undefined;
+    void escucharCierreSitioOficial(() => {
+      const draft = cargarBorrador(tramite.slug);
+      if (!draft) return;
+      setValores(draft.valores);
+      setPaso(Math.min(4, Math.max(2, draft.paso)));
+    }).then((remove) => {
+      cleanup = remove;
+    });
+
+    return () => {
+      if (cleanup) void cleanup();
+    };
+  }, [tramite.slug]);
 
   useEffect(() => {
     if (!borradorCargado) return;
