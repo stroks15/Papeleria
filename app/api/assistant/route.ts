@@ -5,9 +5,9 @@ import { executeAssistantTool, type ToolArtifact } from '@/lib/server/assistantT
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const GEMINI_REQUESTED_MODEL = process.env.GEMINI_AI_MODEL || 'gemini-1.5-flash';
+const GEMINI_REQUESTED_MODEL = process.env.GEMINI_AI_MODEL || 'gemini-3.8-flash';
 const GEMINI_FALLBACK_MODEL = process.env.GEMINI_AI_FALLBACK_MODEL || 'gemini-3.8-flash';
-const GROQ_REQUESTED_MODEL = process.env.GROQ_AI_MODEL || 'llama-3.1-8b-instant';
+const GROQ_REQUESTED_MODEL = process.env.GROQ_AI_MODEL || 'openai/gpt-oss-20b';
 const GROQ_FALLBACK_MODEL = process.env.GROQ_AI_FALLBACK_MODEL || 'openai/gpt-oss-20b';
 
 const TOOL_NAMES = [
