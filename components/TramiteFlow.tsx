@@ -1,16 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Browser } from '@capacitor/browser';
 import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
 import OfficialSiteModal from './OfficialSiteModal';
+import { cargarBorrador, guardarBorrador, borrarBorrador } from '@/lib/tramiteDraft';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
-import {
-  abrirWebViewOficial,
-  autocompletarAlCargar,
-  esAppNativa,
-} from '@/lib/capacitorWebView';
+import { abrirSitioOficial, esAppNativa } from '@/lib/officialBrowser';
 
 function idSesion(): string {
   if (typeof window === 'undefined') return '';
@@ -30,17 +28,27 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [abriendo, setAbriendo] = useState(false);
   const [errorSitio, setErrorSitio] = useState<string | null>(null);
   const [mostrarSitioWeb, setMostrarSitioWeb] = useState(false);
+  const [borradorCargado, setBorradorCargado] = useState(false);
 
   useEffect(() => {
+    const draft = cargarBorrador(tramite.slug);
+    if (draft) {
+      setValores(draft.valores);
+      setPaso(Math.min(4, Math.max(2, draft.paso)));
+    }
+    setBorradorCargado(true);
+
     registrarEvento(tramite.slug, 'inicio');
     // Solo al entrar al trámite.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!borradorCargado) return;
+    guardarBorrador(tramite.slug, { paso, valores });
     const id = idSesion();
     if (id) guardarSesion(id, tramite.slug, paso, valores);
-  }, [paso, valores, tramite.slug]);
+  }, [borradorCargado, paso, valores, tramite.slug]);
 
   const campoActivo = useMemo(
     () => tramite.campos.find((c) => !valores[c.id]) ?? tramite.campos[0],
@@ -59,6 +67,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   }
 
   function nuevoTramite() {
+    borrarBorrador(tramite.slug);
     setValores({});
     setPaso(2);
   }
@@ -85,10 +94,14 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     return {};
   }
 
-  async function abrirSitioOficial() {
+  async function abrirSitioOficialDesdeApp() {
     registrarEvento(tramite.slug, 'completado');
     setErrorSitio(null);
     setAbriendo(true);
+
+    // El borrador se escribe antes de abrir el navegador in-app. Así,
+    // aunque Android pause/recree la actividad, el trámite puede recuperarse.
+    guardarBorrador(tramite.slug, { paso, valores });
 
     try {
       if (!esAppNativa()) {
@@ -96,13 +109,10 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
         return;
       }
 
-      const id = await abrirWebViewOficial(tramite.urlOficial);
-      if (id) {
-        autocompletarAlCargar(id, construirDatosAutoCompletado(), mapeoSitioOficial());
-      }
+      await abrirSitioOficial(tramite.urlOficial);
     } catch {
       setErrorSitio(
-        'No se pudo abrir el sitio oficial. Intenta de nuevo o abre la página con el enlace directo.'
+        'No se pudo abrir el sitio oficial. Verifica tu conexión e inténtalo de nuevo.',
       );
     } finally {
       setAbriendo(false);
@@ -245,11 +255,18 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                 {errorSitio}{' '}
                 <a
                   href={tramite.urlOficial}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    try {
+                      guardarBorrador(tramite.slug, { paso, valores });
+                      await Browser.open({ url: tramite.urlOficial, toolbarColor: '#1F4E79' });
+                    } catch {
+                      setErrorSitio('No se pudo abrir el sitio oficial. Intenta de nuevo.');
+                    }
+                  }}
                   className="font-semibold text-oficial underline"
                 >
-                  Abrir enlace directo
+                  Abrir sitio oficial
                 </a>
               </p>
             )}
@@ -257,7 +274,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
             <button
               type="button"
               disabled={abriendo}
-              onClick={abrirSitioOficial}
+              onClick={abrirSitioOficialDesdeApp}
               className="rounded-2xl py-4 text-center text-lg font-bold text-carta disabled:opacity-60"
               style={{ backgroundColor: tramite.colorHex }}
             >
