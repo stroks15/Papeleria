@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Browser } from '@capacitor/browser';
 import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
@@ -73,26 +72,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   }
 
   const todosLosCamposLlenos = tramite.campos.every((c) => valores[c.id]?.trim());
-
-  // Junta los datos del formulario con los de contacto precargados para
-  // inyectarlos en el sitio oficial.
-  function construirDatosAutoCompletado(): Record<string, string> {
-    const datos: Record<string, string> = { ...valores };
-    if (tramite.autofillContacto) {
-      datos.lada = tramite.autofillContacto.lada;
-      datos.telefono = tramite.autofillContacto.telefono;
-      datos.correo = tramite.autofillContacto.correo;
-    }
-    return datos;
-  }
-
-  // Mapeo opcional clave -> selector del sitio oficial. Si el sitio expone
-  // `name`/`id`/`placeholder` igual a la clave del trámite, no hace falta
-  // ponerlo aquí. Ejemplo:
-  //   numeroServicio: 'input[name="NumeroServicio"]'
-  function mapeoSitioOficial(): Record<string, string> {
-    return {};
-  }
 
   async function abrirSitioOficialDesdeApp() {
     registrarEvento(tramite.slug, 'completado');
@@ -239,13 +218,10 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
 
             {esAppNativa() && (
               <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
-                <p className="font-semibold text-tinta">
-                  Autocompletado automático
-                </p>
+                <p className="font-semibold text-tinta">Tus datos quedan guardados</p>
                 <p className="mt-1 text-sm text-tinta-suave">
-                  Estás en la app de Android: al abrir el sitio oficial se copiarán
-                  automáticamente tus datos capturados y tus datos de contacto en la
-                  página (en modo escritorio).
+                  En Android, tus campos se guardan localmente antes de abrir el portal.
+                  Al cerrar el navegador in-app regresarás a este trámite sin perder el progreso.
                 </p>
               </div>
             )}
@@ -259,7 +235,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                     e.preventDefault();
                     try {
                       guardarBorrador(tramite.slug, { paso, valores });
-                      await Browser.open({ url: tramite.urlOficial, toolbarColor: '#1F4E79' });
+                      await abrirSitioOficial(tramite.urlOficial);
                     } catch {
                       setErrorSitio('No se pudo abrir el sitio oficial. Intenta de nuevo.');
                     }
