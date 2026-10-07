@@ -82,7 +82,8 @@ export default function Assistant({
 
     setCargando(true);
     try {
-      const response = await fetch('/api/assistant', {
+      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (typeof window !== 'undefined' && window.location.protocol.startsWith('capacitor') ? 'https://papeleria-arcoiris.vercel.app' : '');
+      const response = await fetch(apiBase + '/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: texto, context: contextoActual(), images: imagenes }),
