@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Browser } from '@capacitor/browser';
 
 type Props = { url: string; title: string; onClose: () => void };
 
@@ -15,9 +16,13 @@ export default function OfficialSiteModal({ url, title, onClose }: Props) {
     };
   }, [onClose]);
 
-  function abrirSitio() {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    onClose();
+  async function abrirSitio() {
+    try {
+      await Browser.open({ url, toolbarColor: '#1F4E79' });
+      onClose();
+    } catch {
+      // En web, si el navegador bloquea la ventana, dejamos el modal abierto.
+    }
   }
 
   return (
