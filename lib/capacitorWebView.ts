@@ -134,19 +134,9 @@ export function construirScriptAutocompletado(
     });
   });
 
-  // 3) Relleno restante: primeros inputs vacíos del DOM.
-  var pendientes = vacios.filter(function (k) {
-    return !Object.prototype.hasOwnProperty.call(mapeo, k);
-  });
-  var idx = 0;
-  document.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach(function (el) {
-    if (idx >= pendientes.length) return;
-    if (!el.value && el.type !== 'hidden' && !el.disabled && !el.readOnly) {
-      asignar(el, datos[pendientes[idx]]);
-      idx++;
-    }
-  });
-
+  // No existe un fallback posicional deliberado: los portales pueden cambiar
+  // el orden de sus campos y nunca debemos escribir datos en un campo
+  // equivocado, CAPTCHA, token u otro control de seguridad.
   return 'ok';
 })();
 `;
