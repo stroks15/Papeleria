@@ -10,6 +10,9 @@ const GEMINI_FALLBACK_MODEL = process.env.GEMINI_AI_FALLBACK_MODEL || 'gemini-3.
 const GROQ_REQUESTED_MODEL = process.env.GROQ_AI_MODEL || 'openai/gpt-oss-20b';
 const GROQ_FALLBACK_MODEL = process.env.GROQ_AI_FALLBACK_MODEL || 'openai/gpt-oss-20b';
 
+const MAX_IMAGES = 20;
+const MAX_IMAGE_CHARS = 8_000_000;
+
 const TOOL_NAMES = [
   'create_pdf_from_photos',
   'scan_to_pdf',
@@ -133,7 +136,12 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
     const message = typeof body.message === 'string' ? body.message.trim() : '';
-    const images = Array.isArray(body.images) ? body.images.filter((x): x is string => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 20) : [];
+    const images = Array.isArray(body.images)
+      ? body.images
+          .filter((x): x is string => typeof x === 'string' && x.startsWith('data:image/'))
+          .filter((x) => x.length <= MAX_IMAGE_CHARS)
+          .slice(0, MAX_IMAGES)
+      : [];
     if (!message) return NextResponse.json({ ok: false, error: 'Falta el mensaje.' }, { status: 400 });
 
     if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
@@ -171,7 +179,19 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!response) throw new Error('Gemini no pudo procesar la solicitud.');
+    if (!response) {
+      if (process.env.GROQ_API_KEY) {
+        const fallback = await groqText(message, body.context);
+        return NextResponse.json({
+          ok: true,
+          ...fallback,
+          action: 'help_user',
+          parameters: {},
+          fallback: 'groq',
+        });
+      }
+      throw new Error('Gemini no pudo procesar la solicitud.');
+    }
 
     const calls = response.functionCalls || [];
     if (!calls.length) {
