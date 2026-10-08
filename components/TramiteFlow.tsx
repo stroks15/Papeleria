@@ -4,10 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
-import OfficialSiteModal from './OfficialSiteModal';
 import { cargarBorrador, guardarBorrador, borrarBorrador } from '@/lib/tramiteDraft';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
-import { abrirSitioOficial, escucharCierreSitioOficial, esAppNativa } from '@/lib/officialBrowser';
+import { abrirSitioOficial, esAppNativa } from '@/lib/officialBrowser';
 
 function idSesion(): string {
   if (typeof window === 'undefined') return '';
@@ -25,8 +24,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [copiado, setCopiado] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
-  const [errorSitio, setErrorSitio] = useState<string | null>(null);
-  const [mostrarSitioWeb, setMostrarSitioWeb] = useState(false);
   const [borradorCargado, setBorradorCargado] = useState(false);
 
   useEffect(() => {
@@ -41,31 +38,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     // Solo al entrar al trámite.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!esAppNativa()) return;
-
-    let disposed = false;
-    let cleanup: (() => Promise<void>) | undefined;
-
-    void escucharCierreSitioOficial(() => {
-      const draft = cargarBorrador(tramite.slug);
-      if (!draft || disposed) return;
-      setValores(draft.valores);
-      setPaso(Math.min(4, Math.max(2, draft.paso)));
-    }).then((remove) => {
-      if (disposed) {
-        void remove();
-        return;
-      }
-      cleanup = remove;
-    });
-
-    return () => {
-      disposed = true;
-      if (cleanup) void cleanup();
-    };
-  }, [tramite.slug]);
 
   useEffect(() => {
     if (!borradorCargado) return;
@@ -236,7 +208,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
             <div className="rounded-3xl border-2 border-oficial/20 bg-carta p-4 shadow-sm">
               <p className="font-semibold text-tinta">Datos listos para el portal oficial</p>
               <p className="mt-1 text-sm text-tinta-suave">
-                Antes de abrir el portal puedes copiar cada dato. Si el portal no admite autollenado automático, sólo pégalo en su campo correspondiente.
+                La APK no rellena el portal automáticamente. Copia cada dato aquí y pégalo manualmente en el campo indicado del sitio oficial.
               </p>
               <div className="mt-3 flex flex-col gap-2">
                 {tramite.campos.map((campo) => (
@@ -248,6 +220,14 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                     onCopiar={() => copiar(valores[campo.id] || '', campo.id)}
                   />
                 ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
+              <p className="font-semibold text-tinta">📍 Referencia real del portal</p>
+              <p className="mt-1 text-sm text-tinta-suave">Captura de referencia del portal oficial para identificar dónde pegar los datos.</p>
+              <div className="mt-3 overflow-hidden rounded-2xl border-2 border-tinta/10 bg-white">
+                <img src={tramite.imagenReferenciaUrl} alt={"Captura real del portal oficial de " + tramite.nombre} className="h-auto w-full" loading="lazy" />
               </div>
             </div>
 
@@ -265,8 +245,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
               <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
                 <p className="font-semibold text-tinta">Tus datos quedan guardados</p>
                 <p className="mt-1 text-sm text-tinta-suave">
-                  En Android, tus campos se guardan localmente antes de abrir el portal.
-                  Al cerrar el navegador in-app regresarás a este trámite sin perder el progreso.
+                  Tus campos se guardan localmente antes de abrir el navegador externo. Puedes volver a la APK cuando termines el trámite.
                 </p>
               </div>
             )}
@@ -312,14 +291,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
           </div>
         )}
       </div>
-
-      {mostrarSitioWeb && (
-        <OfficialSiteModal
-          url={tramite.urlOficial}
-          title={tramite.nombre}
-          onClose={() => setMostrarSitioWeb(false)}
-        />
-      )}
 
       <Assistant
         modo="tramite"
