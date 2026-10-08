@@ -57,6 +57,15 @@ export async function POST(req: Request) {
         message,
         files.map((file) => ({ name: file.name, size: file.data.length, mimeType: file.mimeType })),
       );
+      return NextResponse.json({
+        ok: true,
+        reply: 'Pedido preparado. Revisa los datos y confirma la impresión en la papelería.',
+        action,
+        parameters: {},
+        provider: 'fallback',
+        model: 'deterministic',
+        artifact,
+      });
     }
 
     if (LOCAL_ACTIONS.has(action)) {
