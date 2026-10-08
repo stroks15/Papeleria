@@ -42,15 +42,26 @@ async function gemini(input: GatewayInput): Promise<GatewayResult> {
     'Contexto: ' + JSON.stringify(input.context || {}),
     'Petición: ' + input.message,
   ].join('\n') }];
+
   for (const image of (input.images || []).slice(0, 10)) {
     const parsed = dataUrlParts(image);
-    if (parsed && parsed.mimeType.startsWith('image/')) parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.data } });
+    if (parsed && parsed.mimeType.startsWith('image/')) {
+      parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.data } });
+    }
   }
+
   for (const file of (input.files || []).slice(0, 5)) {
     const parsed = dataUrlParts(file.data);
-    if (parsed && (parsed.mimeType === 'application/pdf' || parsed.mimeType.startsWith('text/'))) parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.data } });
+    if (parsed && (parsed.mimeType === 'application/pdf' || parsed.mimeType.startsWith('text/'))) {
+      parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.data } });
+    }
   }
-  const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: [{ role: 'user', parts }], config: { temperature: 0.25 } });
+
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: [{ role: 'user', parts }],
+    config: { temperature: 0.25 },
+  });
   const reply = cleanText(response.text);
   if (!reply) throw new Error('Gemini no devolvió contenido.');
   return { reply, provider: 'gemini', model: GEMINI_MODEL };
@@ -58,18 +69,43 @@ async function gemini(input: GatewayInput): Promise<GatewayResult> {
 
 async function groq(input: GatewayInput): Promise<GatewayResult> {
   if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY no configurada.');
+
+  const userContent: Array<Record<string, unknown>> = [{
+    type: 'text',
+    text: (PROMPTS[input.action] || PROMPTS.help_user)
+      + '\nContexto: ' + JSON.stringify(input.context || {})
+      + '\nPetición: ' + input.message,
+  }];
+
+  // Groq recibe imágenes con el formato OpenAI-compatible. Esto evita perder
+  // la fotografía cuando Gemini falla o está temporalmente limitado.
+  for (const image of (input.images || []).slice(0, 10)) {
+    const parsed = dataUrlParts(image);
+    if (parsed && parsed.mimeType.startsWith('image/')) {
+      userContent.push({ type: 'image_url', image_url: { url: image } });
+    }
+  }
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.GROQ_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: GROQ_MODEL, temperature: 0.2, max_completion_tokens: 1800,
+      model: GROQ_MODEL,
+      temperature: 0.2,
+      max_completion_tokens: 1800,
       messages: [
         { role: 'system', content: 'Eres ArcoirisAI. Responde en español. No inventes fuentes, no pidas contraseñas y nunca intentes resolver CAPTCHA.' },
-        { role: 'user', content: (PROMPTS[input.action] || PROMPTS.help_user) + '\nContexto: ' + JSON.stringify(input.context || {}) + '\nPetición: ' + input.message },
+        { role: 'user', content: userContent },
       ],
     }),
   });
-  if (!response.ok) { const error = new Error('Groq HTTP ' + response.status) as Error & { status?: number }; error.status = response.status; throw error; }
+
+  if (!response.ok) {
+    const error = new Error('Groq HTTP ' + response.status) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
   const data = await response.json();
   const reply = cleanText(data?.choices?.[0]?.message?.content);
   if (!reply) throw new Error('Groq no devolvió contenido.');
@@ -88,14 +124,17 @@ export async function runAiTask(input: GatewayInput): Promise<GatewayResult> {
   const hasMedia = Boolean((input.images?.length || 0) + (input.files?.length || 0));
   const order = VISION_ACTIONS.has(input.action) || hasMedia ? ['gemini', 'groq'] : ['groq', 'gemini'];
   let lastError: unknown;
+
   for (const provider of order) {
-    try { return provider === 'gemini' ? await gemini(input) : await groq(input); }
-    catch (error) {
+    try {
+      return provider === 'gemini' ? await gemini(input) : await groq(input);
+    } catch (error) {
       lastError = error;
       const status = (error as Error & { status?: number }).status;
       if (status !== undefined && !retryable(status)) break;
     }
   }
+
   console.warn('AI gateway fallback:', lastError);
   return fallback(input);
 }
