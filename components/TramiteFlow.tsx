@@ -237,13 +237,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
-              <p className="font-semibold text-tinta">📍 Referencia real del portal</p>
-              <p className="mt-1 text-sm text-tinta-suave">Captura de referencia del portal oficial para identificar dónde pegar tus datos.</p>
-              <div className="mt-3 overflow-hidden rounded-2xl border-2 border-tinta/10 bg-white">
-                <img src={tramite.imagenReferenciaUrl} alt={"Captura real del portal oficial de " + tramite.nombre} className="h-auto w-full" loading="lazy" />
-              </div>
-            </div>
 
             <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
               <p className="font-semibold text-tinta">
