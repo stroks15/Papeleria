@@ -7,6 +7,18 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   trailingSlash: true,
+  webpack: (config) => {
+    // @techstark/opencv-js es un módulo pensado para navegador/WASM, pero su
+    // bundle UMD referencia módulos Node opcionales. Next/Webpack debe tratarlos
+    // como ausentes para evitar que el build del servidor intente resolverlos.
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+    return config;
+  },
 };
 
 // Modo export estático: lo usa la automatización de Capacitor/Android
