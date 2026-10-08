@@ -1,20 +1,28 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import Link from 'next/link';
 import type { AIServicio } from '@/lib/ai-services';
+import { Capacitor } from '@capacitor/core';
+import { credentialSheet, photosToPdf, compressPdf, restorePhoto } from '@/lib/client/localTools';
+import { programarRecordatorio } from '@/lib/client/reminders';
 
 type Artifact = { filename: string; mimeType: string; dataBase64: string; size: number };
+
+function dataUrlToArtifact(filename: string, mimeType: string, dataUrl: string, size: number): Artifact {
+  return { filename, mimeType, dataBase64: dataUrl.split(',')[1] || '', size };
+}
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
+    reader.onerror = () => reject(reader.error || new Error('No se pudo leer el archivo.'));
     reader.readAsDataURL(file);
   });
 }
+
+const LOCAL_ACTIONS = new Set(['create_pdf_from_photos', 'scan_to_pdf', 'compress_pdf', 'restore_photo', 'create_id_photos']);
 
 export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
   const [mensaje, setMensaje] = useState('');
@@ -22,7 +30,9 @@ export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
   const [cargando, setCargando] = useState(false);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [fechaRecordatorio, setFechaRecordatorio] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const accept = useMemo(() => {
     if (servicio.input === 'images') return 'image/*';
@@ -42,33 +52,73 @@ export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
     }).slice(0, servicio.input === 'images' ? 20 : 5);
     setArchivos(lista);
     setArtifact(null);
-    setRespuesta(lista.length ? `${lista.length} archivo(s) seleccionado(s). Ya puedes ejecutar ${servicio.title}.` : 'El archivo seleccionado no es compatible.');
+    setRespuesta(lista.length ? lista.length + ' archivo(s) seleccionado(s).' : 'El archivo seleccionado no es compatible.');
+  }
+
+  async function ejecutarLocal() {
+    if (!archivos.length) throw new Error('Selecciona un archivo.');
+    if (servicio.action === 'create_pdf_from_photos' || servicio.action === 'scan_to_pdf') {
+      const result = await photosToPdf(archivos);
+      return dataUrlToArtifact(result.filename, result.mimeType, result.dataUrl, result.size);
+    }
+    if (servicio.action === 'compress_pdf') {
+      const result = await compressPdf(archivos[0]);
+      return dataUrlToArtifact(result.filename, result.mimeType, result.dataUrl, result.size);
+    }
+    if (servicio.action === 'restore_photo') {
+      const result = await restorePhoto(archivos[0]);
+      return dataUrlToArtifact(result.filename, result.mimeType, result.dataUrl, result.size);
+    }
+    const result = await credentialSheet(archivos[0]);
+    return dataUrlToArtifact(result.filename, result.mimeType, result.dataUrl, result.size);
+  }
+
+  async function ejecutarIA() {
+    const dataUrls = await Promise.all(archivos.map(fileToDataUrl));
+    const images = archivos.map((file, i) => file.type.startsWith('image/') ? dataUrls[i] : null).filter((x): x is string => !!x);
+    const files = archivos.map((file, i) => ({
+      data: dataUrls[i],
+      mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'),
+      name: file.name,
+    }));
+    const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : '');
+    const response = await fetch(apiBase + '/api/assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: mensaje.trim() || 'Analiza el material seleccionado y ayúdame con esta herramienta.',
+        context: { currentModule: servicio.id, currentStep: 'inicio', requestedAction: servicio.action },
+        images,
+        files,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo ejecutar el servicio.');
+    if (data.artifact) setArtifact(data.artifact);
+    setRespuesta(data.reply || 'Listo.');
   }
 
   async function iniciarServicio() {
     setCargando(true);
     setArtifact(null);
     try {
-      const dataUrls = await Promise.all(archivos.map(fileToDataUrl));
-      const images = archivos.map((file, i) => file.type.startsWith('image/') ? dataUrls[i] : null).filter((x): x is string => !!x);
-      const files = archivos.map((file, i) => ({ data: dataUrls[i], mimeType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'), name: file.name }));
-      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/assistant`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: mensaje.trim() || `Ejecuta la función ${servicio.title} con los archivos que seleccioné.`,
-          context: { currentModule: servicio.id, currentStep: 'inicio', requestedAction: servicio.action },
-          images,
-          files,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo ejecutar el servicio.');
-      setRespuesta(data.reply || 'Listo.');
-      if (data.artifact) setArtifact(data.artifact);
+      if (LOCAL_ACTIONS.has(servicio.action)) {
+        const result = await ejecutarLocal();
+        setArtifact(result);
+        setRespuesta('Listo. Se procesó en el dispositivo, sin consumir cuota de IA.');
+      } else if (servicio.action === 'create_reminder') {
+        if (!fechaRecordatorio) throw new Error('Elige fecha y hora.');
+        await programarRecordatorio(
+          mensaje.trim() || 'Recordatorio de Papelería Arcoíris',
+          mensaje.trim() || 'Tienes un recordatorio pendiente.',
+          new Date(fechaRecordatorio),
+        );
+        setRespuesta('Recordatorio programado correctamente.');
+      } else {
+        await ejecutarIA();
+      }
     } catch (error) {
-      setRespuesta(error instanceof Error ? error.message : 'No se pudo ejecutar el servicio.');
+      setRespuesta(error instanceof Error ? error.message : 'No se pudo completar la herramienta.');
     } finally {
       setCargando(false);
     }
@@ -77,7 +127,7 @@ export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
   function descargar() {
     if (!artifact) return;
     const link = document.createElement('a');
-    link.href = `data:${artifact.mimeType};base64,${artifact.dataBase64}`;
+    link.href = 'data:' + artifact.mimeType + ';base64,' + artifact.dataBase64;
     link.download = artifact.filename;
     document.body.appendChild(link);
     link.click();
@@ -102,29 +152,45 @@ export default function ServicioClient({ servicio }: { servicio: AIServicio }) {
         {necesitaArchivo && (
           <div className="mt-5">
             <input ref={inputRef} type="file" accept={accept} multiple={servicio.input === 'images' || servicio.input === 'images-or-pdf'} className="sr-only" onChange={(e) => void seleccionar(e.target.files)} />
-            <button type="button" onClick={() => inputRef.current?.click()} className="w-full rounded-2xl border-2 border-dashed border-oficial bg-papel px-4 py-5 text-center font-bold text-tinta shadow-sm">
-              {servicio.input === 'pdf' ? '📄 Seleccionar archivo PDF' : servicio.input === 'images' ? '📷 Seleccionar imágenes' : '📎 Seleccionar imágenes o PDF'}
-            </button>
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void seleccionar(e.target.files)} />
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => inputRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-papel px-3 py-4 text-center font-bold text-tinta">
+                📎 Seleccionar
+              </button>
+              {(servicio.input === 'images' || servicio.input === 'images-or-pdf') && (
+                <button type="button" onClick={() => cameraRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-white px-3 py-4 text-center font-bold text-tinta">
+                  📷 Tomar foto
+                </button>
+              )}
+            </div>
             {archivos.length > 0 && (
               <div className="mt-3 rounded-2xl bg-papel p-3 text-sm text-tinta">
                 <p className="font-bold">{archivos.length} archivo(s) seleccionado(s)</p>
-                <ul className="mt-1 space-y-1">
-                  {archivos.slice(0, 5).map((file) => <li key={`${file.name}-${file.size}`} className="truncate">• {file.name}</li>)}
-                </ul>
+                <ul className="mt-1 space-y-1">{archivos.slice(0, 5).map((file) => <li key={file.name + file.size} className="truncate">• {file.name}</li>)}</ul>
               </div>
             )}
           </div>
         )}
 
-        <label className="mt-5 block text-sm font-bold text-tinta" htmlFor="mensaje-servicio">Instrucción para la IA</label>
-        <textarea id="mensaje-servicio" value={mensaje} onChange={(event) => setMensaje(event.target.value)} placeholder={necesitaArchivo ? 'Ej. mejora esta foto, resume este documento o dime qué campos debo llenar…' : `Cuéntame qué necesitas para ${servicio.title.toLowerCase()}…`} className="mt-2 min-h-28 w-full rounded-2xl bg-papel p-3 text-base text-tinta outline-none ring-2 ring-tinta/10 focus:ring-oficial" />
+        {servicio.action === 'create_reminder' && (
+          <div className="mt-5">
+            <label htmlFor="fecha-recordatorio" className="block text-sm font-bold text-tinta">Fecha y hora</label>
+            <input id="fecha-recordatorio" type="datetime-local" value={fechaRecordatorio} onChange={(e) => setFechaRecordatorio(e.target.value)} className="mt-2 w-full rounded-2xl border-2 border-tinta/10 bg-white px-4 py-3 text-base text-tinta" />
+          </div>
+        )}
+
+        {servicio.action !== 'create_reminder' && servicio.action !== 'create_print_order' && (
+          <label className="mt-5 block text-sm font-bold text-tinta" htmlFor="mensaje-servicio">Instrucción</label>
+        )}
+        {servicio.action !== 'create_reminder' && (
+          <textarea id="mensaje-servicio" value={mensaje} onChange={(event) => setMensaje(event.target.value)} placeholder={necesitaArchivo ? 'Ej. resume, analiza, restaura o prepara este material…' : 'Cuéntame qué necesitas…'} className="mt-2 min-h-28 w-full rounded-2xl bg-white p-3 text-base text-tinta outline-none ring-2 ring-tinta/10 focus:ring-oficial" />
+        )}
 
         <button type="button" onClick={() => void iniciarServicio()} disabled={cargando || (necesitaArchivo && archivos.length === 0)} className="mt-4 w-full rounded-2xl bg-oficial px-4 py-4 text-lg font-bold text-carta shadow-sm disabled:opacity-50">
-          {cargando ? 'Gemini + Groq procesando…' : 'Ejecutar con IA'}
+          {cargando ? 'Procesando…' : LOCAL_ACTIONS.has(servicio.action) ? 'Procesar en el dispositivo' : servicio.action === 'create_reminder' ? 'Programar recordatorio' : 'Ejecutar'}
         </button>
 
         {respuesta && <div className="mt-4 rounded-2xl bg-white p-4 text-base font-medium leading-6 text-tinta ring-2 ring-tinta/10" aria-live="polite">{respuesta}</div>}
-
         {artifact && (
           <div className="mt-4 rounded-2xl bg-papel p-4 ring-2 ring-tinta/10">
             <p className="font-bold text-tinta">Archivo listo: {artifact.filename}</p>
