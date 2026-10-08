@@ -86,7 +86,7 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
           </div>
           {ineBack&&<p className="mt-2 truncate text-sm text-tinta">✓ {ineBack.name}</p>}
         </div>
-        <p className="rounded-2xl bg-white p-3 text-sm text-tinta">El PDF tendrá 2 páginas tamaño carta, con cada INE recortada, enderezada y centrada.</p>
+        <p className="rounded-2xl bg-white p-3 text-sm text-tinta">El PDF tendrá una página tamaño carta, con frente y reverso recortados, enderezados y colocados a escala de la plantilla.</p>
       </div>: (necesitaArchivo||esOpcional)&&<div className="mt-5"><input ref={galleryRef} type="file" accept={accept} multiple={servicio.input==='images'||servicio.input==='images-or-pdf'} className="sr-only" onChange={e=>seleccionar(e.target.files)}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionar(e.target.files)}/>
         <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>galleryRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-papel p-4 font-bold text-tinta">🖼️ Galería</button>{(servicio.input==='images'||servicio.input==='images-or-pdf'||esOpcional)&&<button type="button" onClick={()=>cameraRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-white p-4 font-bold text-tinta">📷 Tomar foto</button>}</div>
         {esOpcional&&<p className="mt-2 text-xs text-tinta-suave">Foto opcional: puedes hacer el anuncio solo con texto.</p>}
