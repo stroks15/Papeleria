@@ -54,18 +54,32 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
     if (!texto || cargando) return;
     setCargando(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (typeof window !== 'undefined' && window.location.protocol.startsWith('capacitor') ? 'https://papeleria-arcoiris.vercel.app' : '');
-      const response = await fetch(apiBase + '/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: texto,
-          context: contextoActual(),
-          images: adjuntos.filter((x) => x.mimeType.startsWith('image/')).map((x) => x.data),
-          files: adjuntos,
-        }),
-      });
-      const data: AssistantResponse = await response.json();
+      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : window.location.origin);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30000);
+      let response: Response;
+      try {
+        response = await fetch(apiBase.replace(/\/$/, '') + '/api/assistant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: texto,
+            context: contextoActual(),
+            images: adjuntos.filter((x) => x.mimeType.startsWith('image/')).map((x) => x.data),
+            files: adjuntos,
+          }),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') throw new Error('ArcoirisAI tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.');
+        throw new Error('No se pudo conectar con ArcoirisAI. Revisa tu conexión a Internet e inténtalo de nuevo.');
+      } finally {
+        window.clearTimeout(timeout);
+      }
+      const raw = await response.text();
+      let data: AssistantResponse;
+      try { data = JSON.parse(raw) as AssistantResponse; }
+      catch { throw new Error(response.ok ? 'El servidor devolvió una respuesta inválida.' : 'El servidor no está disponible en este momento.'); }
       if (!response.ok || !data.ok) {
         setMensaje(data.error || 'No pude procesar tu solicitud.');
         return;
