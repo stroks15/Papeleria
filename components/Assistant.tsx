@@ -134,7 +134,7 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
             <div className="mb-4 max-h-56 overflow-y-auto rounded-2xl border-2 border-black/10 bg-white p-4 text-base font-medium leading-6 text-tinta shadow-inner" aria-live="polite">{mensaje}</div>
 
             <label className="mb-3 block cursor-pointer rounded-2xl border-2 border-dashed border-oficial bg-papel px-4 py-4 text-center text-sm font-bold text-tinta">
-              📎 Adjuntar imágenes o PDF a la IA
+              📎 Adjuntar imagen o PDF (opcional)
               <input type="file" accept="image/*,application/pdf,.pdf" multiple className="sr-only" onChange={(e) => void seleccionarArchivos(e.target.files)} />
             </label>
 
