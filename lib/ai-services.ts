@@ -20,5 +20,4 @@ export const aiServicios: AIServicio[] = [
   { id: 'recordatorios', title: 'Recordatorios', emoji: '⏰', action: 'create_reminder', input: 'text', description: 'Describe el recordatorio y la IA te ayuda a organizarlo.' },
   { id: 'llenado-formatos', title: 'Llenado de formatos', emoji: '📝', action: 'fill_form', input: 'images-or-pdf', description: 'Selecciona un formato PDF o foto y la IA te guía campo por campo.' },
   { id: 'investigacion', title: 'Investigación', emoji: '🔎', action: 'research_topic', input: 'images-or-pdf', description: 'Investiga un tema o analiza el material que adjuntes.' },
-  { id: 'tramites-gubernamentales', title: 'Trámites gubernamentales', emoji: '🏛️', action: 'open_government_procedure', input: 'text', description: 'Te guía paso a paso y abre el portal oficial dentro de la APK.' },
 ]
