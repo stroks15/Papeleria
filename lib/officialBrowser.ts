@@ -82,7 +82,27 @@ export async function abrirSitioOficial(url: string, prefill: AutofillValues = {
     return;
   }
 
-  const navigationHandle = await InAppBrowser.addListener('browserNavigationCompleted', async (event) => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('No hay conexión a Internet. Conéctate e inténtalo de nuevo.');
+  }
+
+  let pageLoaded = false;
+  let closedHandle: { remove: () => Promise<void> } | null = null;
+  let navigationHandle: { remove: () => Promise<void> } | null = null;
+  let loadedHandle: { remove: () => Promise<void> } | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = async () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (navigationHandle) await navigationHandle.remove();
+    if (loadedHandle) await loadedHandle.remove();
+    if (closedHandle) await closedHandle.remove();
+    navigationHandle = null;
+    loadedHandle = null;
+    closedHandle = null;
+  };
+
+  navigationHandle = await InAppBrowser.addListener('browserNavigationCompleted', async (event) => {
     try {
       const nextUrl = new URL(event.url);
       if (!hostPermitido(nextUrl.hostname)) return;
@@ -92,42 +112,50 @@ export async function abrirSitioOficial(url: string, prefill: AutofillValues = {
     }
   });
 
-  const loadedHandle = await InAppBrowser.addListener('browserPageLoaded', async () => {
+  loadedHandle = await InAppBrowser.addListener('browserPageLoaded', async () => {
+    pageLoaded = true;
     try {
       await InAppBrowser.executeScript({ script: createAutofillScript(prefill) });
     } catch (error) {
       console.warn('Autollenado inicial no disponible:', error);
     }
+    try {
+      await InAppBrowser.show();
+    } catch (error) {
+      console.warn('No se pudo mostrar el portal in-app:', error);
+    }
   });
 
-  let closedHandle: { remove: () => Promise<void> } | null = null;
   closedHandle = await InAppBrowser.addListener('browserClosed', async () => {
-    await navigationHandle.remove();
-    await loadedHandle.remove();
-    if (closedHandle) await closedHandle.remove();
-    closedHandle = null;
+    await cleanup();
   });
 
   try {
     await InAppBrowser.openInWebView({
       url: parsed.toString(),
+      visible: false,
       toolbar: {
         backgroundColor: '#3F5EFB',
         color: '#FFFFFF',
         showNavigationButtons: true,
+        closeButtonText: 'Volver a Papelería',
       },
       android: {
         hardwareBackButton: true,
+        allowZoom: true,
       },
     });
+
+    timeoutId = setTimeout(async () => {
+      if (pageLoaded) return;
+      try { await InAppBrowser.close(); } catch {}
+      await cleanup();
+    }, 20000);
   } catch (error) {
-    await navigationHandle.remove();
-    await loadedHandle.remove();
-    if (closedHandle) await closedHandle.remove();
+    await cleanup();
     throw new Error('No se pudo abrir el portal oficial. Verifica tu conexión e inténtalo de nuevo.');
   }
 }
-
 export async function escucharCierreSitioOficial(
   onFinished: () => void,
 ): Promise<() => Promise<void>> {
