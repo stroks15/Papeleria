@@ -24,6 +24,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [copiado, setCopiado] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
+  const [errorSitio, setErrorSitio] = useState<string | null>(null);
   const [borradorCargado, setBorradorCargado] = useState(false);
 
   useEffect(() => {
