@@ -153,21 +153,67 @@ async function detectAndWarp(file: File): Promise<Blob> {
 
 export async function scanIneToPdf(front: File, back: File): Promise<LocalArtifact> {
   if (!front || !back) throw new Error('Necesitas una foto del frente y otra del reverso de la INE.');
-  if (!front.type.startsWith('image/') || !back.type.startsWith('image/')) throw new Error('Las dos caras de la INE deben ser fotografías.');
-  const [frontBlob, backBlob] = await Promise.all([detectAndWarp(front), detectAndWarp(back)]);
-  const pdf = await PDFDocument.create();
-  for (const [label, blob] of [['frente', frontBlob], ['reverso', backBlob]] as const) {
-    const image = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
-    const page = pdf.addPage([595.28, 841.89]);
-    const margin = 38;
-    const maxW = page.getWidth() - margin * 2;
-    const maxH = page.getHeight() - margin * 2;
-    const scale = Math.min(maxW / image.width, maxH / image.height);
-    const w = image.width * scale;
-    const h = image.height * scale;
-    page.drawImage(image, { x: (page.getWidth() - w) / 2, y: (page.getHeight() - h) / 2, width: w, height: h });
-    page.drawText(label.toUpperCase(), { x: margin, y: 18, size: 8 });
+  if (!front.type.startsWith('image/') || !back.type.startsWith('image/')) {
+    throw new Error('Las dos caras de la INE deben ser fotografías.');
   }
-  const bytes = await pdf.save({ useObjectStreams: true, addDefaultPage: false });
-  return { filename: 'INE-escaneada-frente-reverso.pdf', mimeType: 'application/pdf', dataUrl: bytesToDataUrl(bytes, 'application/pdf'), size: bytes.byteLength };
+
+  const [frontBlob, backBlob] = await Promise.all([
+    detectAndWarp(front),
+    detectAndWarp(back),
+  ]);
+
+  /*
+   * Plantilla basada directamente en el PDF de referencia:
+   * - Carta vertical: 612 x 792 pt.
+   * - Una sola página.
+   * - Frente y reverso lado a lado.
+   * - Se conserva el tamaño físico del documento, no se escala
+   *   para llenar la hoja.
+   * - Coordenadas medidas del PDF de referencia (origen superior):
+   *   frente: x=46.95, y=145.70, 236.40 x 147.00 pt
+   *   reverso: x=342.00, y=142.85, 238.80 x 148.20 pt
+   */
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([612, 792]);
+
+  const frontImage = await pdf.embedJpg(new Uint8Array(await frontBlob.arrayBuffer()));
+  const backImage = await pdf.embedJpg(new Uint8Array(await backBlob.arrayBuffer()));
+
+  const placements = [
+    {
+      image: frontImage,
+      x: 46.95,
+      top: 145.70,
+      width: 236.40,
+      height: 147.00,
+    },
+    {
+      image: backImage,
+      x: 342.00,
+      top: 142.85,
+      width: 238.80,
+      height: 148.20,
+    },
+  ];
+
+  for (const item of placements) {
+    page.drawImage(item.image, {
+      x: item.x,
+      y: 792 - item.top - item.height,
+      width: item.width,
+      height: item.height,
+    });
+  }
+
+  const bytes = await pdf.save({
+    useObjectStreams: true,
+    addDefaultPage: false,
+  });
+
+  return {
+    filename: 'INE-escaneada-frente-reverso.pdf',
+    mimeType: 'application/pdf',
+    dataUrl: bytesToDataUrl(bytes, 'application/pdf'),
+    size: bytes.byteLength,
+  };
 }
