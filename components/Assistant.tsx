@@ -89,14 +89,28 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
     void consultarArcoirisAI('¿Qué sigue? Explícame el siguiente paso.');
   }
 
-  function descargarArtifact() {
+  async function descargarArtifact() {
     if (!archivoGenerado) return;
-    const link = document.createElement('a');
-    link.href = 'data:' + archivoGenerado.mimeType + ';base64,' + archivoGenerado.dataBase64;
-    link.download = archivoGenerado.filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { guardarArchivoEnAndroid } = await import('@/lib/nativeFiles');
+        await guardarArchivoEnAndroid(
+          archivoGenerado.filename,
+          archivoGenerado.mimeType,
+          archivoGenerado.dataBase64,
+        );
+        setMensaje('Archivo guardado en Descargas/Papelería Arcoíris.');
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = 'data:' + archivoGenerado.mimeType + ';base64,' + archivoGenerado.dataBase64;
+      link.download = archivoGenerado.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      setMensaje('No se pudo guardar el archivo. Intenta pulsar Descargar de nuevo.');
+    }
   }
 
   return (
@@ -128,7 +142,7 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
             {archivoGenerado && (
               <div className="mb-3 rounded-2xl border-2 border-black/10 bg-papel p-3">
                 <p className="text-sm font-bold text-tinta">Archivo listo: {archivoGenerado.filename}</p>
-                <button type="button" onClick={descargarArtifact} className="mt-2 rounded-xl bg-oficial px-4 py-2 text-sm font-bold text-white">Descargar</button>
+                <button type="button" onClick={()=>void descargarArtifact()} className="mt-2 rounded-xl bg-oficial px-4 py-2 text-sm font-bold text-white">Descargar</button>
               </div>
             )}
 
