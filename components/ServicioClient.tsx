@@ -64,9 +64,18 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
   async function ai(){
     const urls=await Promise.all(archivos.map(readFile)); const images=archivos.map((f,i)=>f.type.startsWith('image/')?urls[i]:null).filter((x):x is string=>!!x);
     const files=archivos.map((f,i)=>({data:urls[i],mimeType:f.type||'application/octet-stream',name:f.name}));
-    const base=process.env.NEXT_PUBLIC_ASSISTANT_API_URL||(Capacitor.isNativePlatform()?'https://papeleria-arcoiris.vercel.app':'');
-    const res=await fetch(base+'/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:mensaje.trim()||'Analiza el material seleccionado.',context:{currentModule:servicio.id,currentStep:'inicio',requestedAction:servicio.action},images,files})});
-    const data=await res.json(); if(!res.ok||!data.ok)throw new Error(data.error||'No se pudo ejecutar el servicio.');
+    const base=(process.env.NEXT_PUBLIC_ASSISTANT_API_URL||(Capacitor.isNativePlatform()?'https://papeleria-arcoiris.vercel.app':window.location.origin)).replace(/\/$/,'');
+    const controller=new AbortController(); const timeout=window.setTimeout(()=>controller.abort(),30000);
+    let res:Response;
+    try {
+      res=await fetch(base+'/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:mensaje.trim()||'Ayúdame con esta herramienta.',context:{currentModule:servicio.id,currentStep:'inicio',requestedAction:servicio.action},images,files}),signal:controller.signal});
+    } catch(error) {
+      if(error instanceof DOMException && error.name==='AbortError') throw new Error('La IA tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.');
+      throw new Error('No se pudo conectar con ArcoirisAI. Revisa tu conexión a Internet e inténtalo de nuevo.');
+    } finally { window.clearTimeout(timeout); }
+    const raw=await res.text(); let data:any;
+    try { data=JSON.parse(raw); } catch { throw new Error(res.ok?'El servidor devolvió una respuesta inválida.':'El servidor no está disponible en este momento.'); }
+    if(!res.ok||!data.ok)throw new Error(data.error||'No se pudo ejecutar el servicio.');
     if(data.artifact)entregar(data.artifact);
     else if(PDF_ACTIONS.has(servicio.action)){const {PDFDocument,StandardFonts}=await import('pdf-lib');const pdf=await PDFDocument.create();let page=pdf.addPage([595.28,841.89]);const font=await pdf.embedFont(StandardFonts.Helvetica);let y=800;for(const raw of String(data.reply||'Listo.').replace(/\r/g,'').split('\n')){for(let x=0;x<raw.length;x+=85){if(y<45){page=pdf.addPage([595.28,841.89]);y=800;}page.drawText(raw.slice(x,x+85),{x:40,y,size:11,font});y-=16;}y-=5;}const bytes=await pdf.save({useObjectStreams:true,addDefaultPage:false});entregar(toArtifact('resultado-papeleria-arcoiris.pdf','application/pdf',dataUrl(bytes,'application/pdf'),bytes.byteLength));}
     setRespuesta(data.reply||'Listo.');
