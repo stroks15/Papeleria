@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     });
 
     if (action === 'create_local_ad') {
-      artifact = createAdSvg(ai.reply);
+      artifact = createAdSvg(ai.reply, images[0]);
     }
 
     return NextResponse.json({
