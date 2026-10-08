@@ -100,6 +100,14 @@ export async function abrirSitioOficial(url: string, prefill: AutofillValues = {
     }
   });
 
+  let closedHandle: { remove: () => Promise<void> } | null = null;
+  closedHandle = await InAppBrowser.addListener('browserClosed', async () => {
+    await navigationHandle.remove();
+    await loadedHandle.remove();
+    if (closedHandle) await closedHandle.remove();
+    closedHandle = null;
+  });
+
   try {
     await InAppBrowser.openInWebView({
       url: parsed.toString(),
@@ -115,11 +123,9 @@ export async function abrirSitioOficial(url: string, prefill: AutofillValues = {
   } catch (error) {
     await navigationHandle.remove();
     await loadedHandle.remove();
+    if (closedHandle) await closedHandle.remove();
     throw new Error('No se pudo abrir el portal oficial. Verifica tu conexión e inténtalo de nuevo.');
   }
-
-  await navigationHandle.remove();
-  await loadedHandle.remove();
 }
 
 export async function escucharCierreSitioOficial(
