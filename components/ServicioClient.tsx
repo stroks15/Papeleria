@@ -30,8 +30,25 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
   const esIne=servicio.action==='scan_ine'; const esOpcional=servicio.input==='optional-images'; const necesitaArchivo=servicio.input!=='text'&&!esOpcional;
   const accept=useMemo(()=>servicio.input==='pdf'?'application/pdf,.pdf':servicio.input==='images' || esOpcional?'image/*':servicio.input==='images-or-pdf'?'image/*,application/pdf,.pdf':undefined,[servicio.input,esOpcional]);
 
-  function descargar(a:Artifact){const el=document.createElement('a');el.href='data:'+a.mimeType+';base64,'+a.dataBase64;el.download=a.filename;document.body.appendChild(el);el.click();el.remove();}
-  function entregar(a:Artifact){setArtifact(a);if(a.mimeType==='application/pdf')setTimeout(()=>descargar(a),120);}
+  async function descargar(a:Artifact){
+    try{
+      if(Capacitor.isNativePlatform()){
+        const { guardarArchivoEnAndroid } = await import('@/lib/nativeFiles');
+        await guardarArchivoEnAndroid(a.filename,a.mimeType,a.dataBase64);
+        setRespuesta('Archivo guardado en Descargas/Papelería Arcoíris.');
+        return;
+      }
+      const el=document.createElement('a');
+      el.href='data:'+a.mimeType+';base64,'+a.dataBase64;
+      el.download=a.filename;
+      document.body.appendChild(el);
+      el.click();
+      el.remove();
+    }catch{
+      setRespuesta('No se pudo guardar el archivo. Pulsa Descargar de nuevo.');
+    }
+  }
+  function entregar(a:Artifact){setArtifact(a);if(a.mimeType==='application/pdf')setTimeout(()=>void descargar(a),250);}
   function seleccionar(files:FileList|null){if(!files)return;const list=Array.from(files).filter(f=>servicio.input==='pdf'?(f.type==='application/pdf'||f.name.endsWith('.pdf')):(f.type.startsWith('image/')||f.type==='application/pdf')).slice(0,servicio.input==='images'?20:5);setArchivos(list);setArtifact(null);setRespuesta(list.length?list.length+' archivo(s) seleccionado(s).':'No se seleccionó un archivo compatible.');}
   function seleccionarIne(side:'front'|'back',files:FileList|null){const f=files?.[0];if(!f)return;if(!f.type.startsWith('image/')){setRespuesta('La INE debe ser una fotografía.');return;}side==='front'?setIneFront(f):setIneBack(f);setArtifact(null);setRespuesta(side==='front'?'Frente listo.':'Reverso listo.');}
 
