@@ -14,5 +14,5 @@ export async function programarRecordatorio(title: string, body: string, at: Dat
   const permission = await LocalNotifications.checkPermissions();
   if (permission.display !== 'granted') { const requested = await LocalNotifications.requestPermissions(); if (requested.display !== 'granted') throw new Error('No se concedió permiso para notificaciones.'); }
   const id = Math.max(1, Math.floor(Date.now() % 2147483647));
-  await LocalNotifications.schedule({ notifications: [{ id, title, body, schedule: { at }, sound: null, attachments: [], actionTypeId: '', extra: { source: 'papeleria-arcoiris' } }] });
+  await LocalNotifications.schedule({ notifications: [{ id, title, body, schedule: { at }, isExactNotification: false, sound: null, attachments: [], actionTypeId: '', extra: { source: 'papeleria-arcoiris' } }] });
 }
