@@ -11,7 +11,7 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.PluginMethod;
+import com.getcapacitor.PluginMethod;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -22,7 +22,8 @@ public class FileSaverPlugin extends Plugin {
     @PluginMethod
     public void save(PluginCall call) {
         String filename = call.getString("filename");
-        String mimeType = call.getString("mimeType", "application/octet-stream");
+        String mimeType = call.getString("mimeType");
+        if (mimeType == null || mimeType.trim().isEmpty()) mimeType = "application/octet-stream";
         String dataBase64 = call.getString("dataBase64");
 
         if (filename == null || filename.trim().isEmpty() || dataBase64 == null || dataBase64.isEmpty()) {
