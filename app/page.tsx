@@ -39,9 +39,7 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="fixed bottom-6 right-4">
-          <Assistant />
-        </div>
+        <Assistant />
 
         <footer className="mt-8 text-center text-sm text-gray-600">
           🌈 PAPELERÍA ARCOÍRIS — Fácil y con ayuda
