@@ -63,9 +63,6 @@ export const tramites: Tramite[] = [
     colorSuaveHex: '#DCEEE1',
     urlOficial: 'https://data.finanzas.cdmx.gob.mx/Front_ten/',
     imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/Front_ten/',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://infracciones.ssedomex.gob.mx/Search',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
     campos: [
       {
         id: 'placa',
@@ -85,6 +82,7 @@ export const tramites: Tramite[] = [
     colorSuaveHex: '#E7E0F2',
     urlOficial:
       'https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/#/',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/',
     campos: [
       {
         id: 'placa',
@@ -103,6 +101,7 @@ export const tramites: Tramite[] = [
     colorHex: '#C9503A',
     colorSuaveHex: '#F5DFD8',
     urlOficial: 'https://infracciones.ssedomex.gob.mx/Search',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://infracciones.ssedomex.gob.mx/Search',
     campos: [
       {
         id: 'placa',
@@ -121,6 +120,7 @@ export const tramites: Tramite[] = [
     colorHex: '#D9791F',
     colorSuaveHex: '#F6E4D0',
     urlOficial: 'https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
     campos: [
       {
         id: 'placa',
