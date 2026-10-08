@@ -64,13 +64,30 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
     <section className="mt-4 rounded-3xl bg-carta p-5 shadow-md ring-1 ring-tinta/10">
       <div className="flex items-center gap-4"><span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-papel text-3xl">{servicio.emoji}</span><div><h1 className="text-2xl font-bold text-tinta">{servicio.title}</h1><p className="text-sm text-tinta-suave">{servicio.description}</p></div></div>
 
-      {esIne?<div className="mt-5 space-y-4"><p className="text-sm text-tinta-suave">Para cada cara puedes usar cámara o elegir una foto de la galería.</p>
-        {[['front','1. Frente de la INE',ineFront,frontGallery,frontCamera],['back','2. Reverso de la INE',ineBack,backGallery,backCamera]].map(([side,title,value,g,c])=><div key={String(side)} className="rounded-2xl bg-papel p-4">
-          <b className="text-tinta">{title as string}</b><input ref={g as React.RefObject<HTMLInputElement>} type="file" accept="image/*" className="sr-only" onChange={e=>seleccionarIne(side as 'front'|'back',e.target.files)}/><input ref={c as React.RefObject<HTMLInputElement>} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionarIne(side as 'front'|'back',e.target.files)}/>
-          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={()=>g.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">🖼️ Galería</button><button type="button" onClick={()=>c.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">📷 Cámara</button></div>
-          {value&&<p className="mt-2 truncate text-sm text-tinta">✓ {(value as File).name}</p>}</div>)}
-        <p className="rounded-2xl bg-white p-3 text-sm text-tinta">El PDF tendrá 2 páginas tamaño carta, con cada INE recortada, enderezada y centrada.</p></div>
-      : (necesitaArchivo||esOpcional)&&<div className="mt-5"><input ref={galleryRef} type="file" accept={accept} multiple={servicio.input==='images'||servicio.input==='images-or-pdf'} className="sr-only" onChange={e=>seleccionar(e.target.files)}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionar(e.target.files)}/>
+      {esIne?<div className="mt-5 space-y-4">
+        <p className="text-sm text-tinta-suave">Para cada cara puedes usar cámara o elegir una foto de la galería.</p>
+        <div className="rounded-2xl bg-papel p-4">
+          <b className="text-tinta">1. Frente de la INE</b>
+          <input ref={frontGallery} type="file" accept="image/*" className="sr-only" onChange={e=>seleccionarIne('front',e.target.files)}/>
+          <input ref={frontCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionarIne('front',e.target.files)}/>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={()=>frontGallery.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">🖼️ Galería</button>
+            <button type="button" onClick={()=>frontCamera.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">📷 Cámara</button>
+          </div>
+          {ineFront&&<p className="mt-2 truncate text-sm text-tinta">✓ {ineFront.name}</p>}
+        </div>
+        <div className="rounded-2xl bg-papel p-4">
+          <b className="text-tinta">2. Reverso de la INE</b>
+          <input ref={backGallery} type="file" accept="image/*" className="sr-only" onChange={e=>seleccionarIne('back',e.target.files)}/>
+          <input ref={backCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionarIne('back',e.target.files)}/>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={()=>backGallery.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">🖼️ Galería</button>
+            <button type="button" onClick={()=>backCamera.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">📷 Cámara</button>
+          </div>
+          {ineBack&&<p className="mt-2 truncate text-sm text-tinta">✓ {ineBack.name}</p>}
+        </div>
+        <p className="rounded-2xl bg-white p-3 text-sm text-tinta">El PDF tendrá 2 páginas tamaño carta, con cada INE recortada, enderezada y centrada.</p>
+      </div>: (necesitaArchivo||esOpcional)&&<div className="mt-5"><input ref={galleryRef} type="file" accept={accept} multiple={servicio.input==='images'||servicio.input==='images-or-pdf'} className="sr-only" onChange={e=>seleccionar(e.target.files)}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionar(e.target.files)}/>
         <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>galleryRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-papel p-4 font-bold text-tinta">🖼️ Galería</button>{(servicio.input==='images'||servicio.input==='images-or-pdf'||esOpcional)&&<button type="button" onClick={()=>cameraRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-white p-4 font-bold text-tinta">📷 Tomar foto</button>}</div>
         {esOpcional&&<p className="mt-2 text-xs text-tinta-suave">Foto opcional: puedes hacer el anuncio solo con texto.</p>}
         {archivos.length>0&&<p className="mt-3 rounded-2xl bg-papel p-3 text-sm text-tinta">{archivos.length} archivo(s) seleccionado(s).</p>}</div>}
