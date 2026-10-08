@@ -6,7 +6,7 @@
   "android": { "allowMixedContent": false },
   "plugins": {
     "LocalNotifications": {
-      "smallIcon": "ic_launcher_foreground",
+      "smallIcon": "ic_stat_papeleria",
       "iconColor": "#6C63FF"
     }
   }
