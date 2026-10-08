@@ -113,7 +113,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
         return;
       }
 
-      await abrirSitioOficial(tramite.urlOficial);
+      await abrirSitioOficial(tramite.urlOficial, valores);
     } catch {
       setErrorSitio(
         'No se pudo abrir el sitio oficial. Verifica tu conexión e inténtalo de nuevo.',
@@ -280,7 +280,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                     e.preventDefault();
                     try {
                       guardarBorrador(tramite.slug, { paso, valores });
-                      await abrirSitioOficial(tramite.urlOficial);
+                      await abrirSitioOficial(tramite.urlOficial, valores);
                     } catch {
                       setErrorSitio('No se pudo abrir el sitio oficial. Intenta de nuevo.');
                     }
