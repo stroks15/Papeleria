@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import type { Tramite } from '@/lib/tramites';
 import { nombresPasos } from '@/lib/tramites';
 
