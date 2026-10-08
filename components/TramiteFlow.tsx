@@ -6,7 +6,7 @@ import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
 import { cargarBorrador, guardarBorrador, borrarBorrador } from '@/lib/tramiteDraft';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
-import { abrirSitioOficial, esAppNativa } from '@/lib/officialBrowser';
+import { abrirSitioOficial } from '@/lib/officialBrowser';
 
 function idSesion(): string {
   if (typeof window === 'undefined') return '';
@@ -56,11 +56,22 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     setValores((prev) => ({ ...prev, [id]: valor }));
   }
 
-  function copiar(texto: string, etiqueta: string) {
-    navigator.clipboard?.writeText(texto).then(() => {
-      setCopiado(etiqueta);
-      setTimeout(() => setCopiado(null), 2000);
-    });
+  async function copiar(texto: string, etiqueta: string) {
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = texto;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    setCopiado(etiqueta);
+    setTimeout(() => setCopiado(null), 2000);
   }
 
   function nuevoTramite() {
@@ -76,17 +87,11 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     setErrorSitio(null);
     setAbriendo(true);
 
-    // El borrador se escribe antes de abrir el navegador in-app. Así,
-    // aunque Android pause/recree la actividad, el trámite puede recuperarse.
+    // El borrador se escribe antes de abrir el navegador externo.
     guardarBorrador(tramite.slug, { paso, valores });
 
     try {
-      if (!esAppNativa()) {
-        setMostrarSitioWeb(true);
-        return;
-      }
-
-      await abrirSitioOficial(tramite.urlOficial, valores);
+      await abrirSitioOficial(tramite.urlOficial);
     } catch {
       setErrorSitio(
         'No se pudo abrir el sitio oficial. Verifica tu conexión e inténtalo de nuevo.',
@@ -207,7 +212,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
             )}
 
             <div className="rounded-3xl border-2 border-oficial/20 bg-carta p-4 shadow-sm">
-              <p className="font-semibold text-tinta">Datos listos para el portal oficial</p>
+              <p className="font-semibold text-tinta">Datos listos para copiar al portal oficial</p>
               <p className="mt-1 text-sm text-tinta-suave">
                 La APK no rellena el portal automáticamente. Copia cada dato aquí y pégalo manualmente en el campo indicado del sitio oficial.
               </p>
@@ -227,6 +232,14 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
             <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
               <p className="font-semibold text-tinta">📍 Referencia real del portal</p>
               <p className="mt-1 text-sm text-tinta-suave">Captura de referencia del portal oficial para identificar dónde pegar los datos.</p>
+              <div className="mt-3 overflow-hidden rounded-2xl border-2 border-tinta/10 bg-white">
+                <img src={tramite.imagenReferenciaUrl} alt={"Captura real del portal oficial de " + tramite.nombre} className="h-auto w-full" loading="lazy" />
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
+              <p className="font-semibold text-tinta">📍 Referencia real del portal</p>
+              <p className="mt-1 text-sm text-tinta-suave">Captura de referencia del portal oficial para identificar dónde pegar tus datos.</p>
               <div className="mt-3 overflow-hidden rounded-2xl border-2 border-tinta/10 bg-white">
                 <img src={tramite.imagenReferenciaUrl} alt={"Captura real del portal oficial de " + tramite.nombre} className="h-auto w-full" loading="lazy" />
               </div>
@@ -260,7 +273,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                     e.preventDefault();
                     try {
                       guardarBorrador(tramite.slug, { paso, valores });
-                      await abrirSitioOficial(tramite.urlOficial, valores);
+                      await abrirSitioOficial(tramite.urlOficial);
                     } catch {
                       setErrorSitio('No se pudo abrir el sitio oficial. Intenta de nuevo.');
                     }
