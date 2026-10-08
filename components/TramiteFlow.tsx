@@ -255,15 +255,6 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
               </p>
             </div>
 
-            {esAppNativa() && (
-              <div className="rounded-3xl bg-carta p-4 ring-1 ring-tinta/5">
-                <p className="font-semibold text-tinta">Tus datos quedan guardados</p>
-                <p className="mt-1 text-sm text-tinta-suave">
-                  Tus campos se guardan localmente antes de abrir el navegador externo. Puedes volver a la APK cuando termines el trámite.
-                </p>
-              </div>
-            )}
-
             {errorSitio && (
               <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-tinta ring-2 ring-tinta/10">
                 {errorSitio}{' '}
