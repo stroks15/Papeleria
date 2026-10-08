@@ -14,6 +14,7 @@ export type Tramite = {
   colorSuaveHex: string;
   urlOficial: string;
   campos: CampoTramite[];
+  imagenReferenciaUrl: string;
   autofillContacto?: {
     lada: string;
     telefono: string;
@@ -33,6 +34,7 @@ export const tramites: Tramite[] = [
     colorHex: '#C99A2E',
     colorSuaveHex: '#F3E6C4',
     urlOficial: 'https://app.cfe.mx/Aplicaciones/CCFE/ReciboDeLuzGMX/Consulta',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://app.cfe.mx/Aplicaciones/CCFE/ReciboDeLuzGMX/Consulta',
     campos: [
       {
         id: 'nombreServicio',
@@ -60,6 +62,10 @@ export const tramites: Tramite[] = [
     colorHex: '#3F8F5F',
     colorSuaveHex: '#DCEEE1',
     urlOficial: 'https://data.finanzas.cdmx.gob.mx/Front_ten/',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/Front_ten/',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://infracciones.ssedomex.gob.mx/Search',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
     campos: [
       {
         id: 'placa',
@@ -133,6 +139,7 @@ export const tramites: Tramite[] = [
     colorHex: '#3D74A6',
     colorSuaveHex: '#DAE8F1',
     urlOficial: 'https://aplicaciones.sacmex.cdmx.gob.mx/fut/',
+    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://aplicaciones.sacmex.cdmx.gob.mx/fut/',
     campos: [
       {
         id: 'cuenta',
