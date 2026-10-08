@@ -2,13 +2,12 @@
   "appId": "com.papeleriaarcoiris.app",
   "appName": "Papelería Arcoíris",
   "webDir": "out",
-  "server": {
-    "androidScheme": "https"
-  },
-  "android": {
-    "allowMixedContent": false
-  },
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false },
   "plugins": {
-    "Browser": {}
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher_foreground",
+      "iconColor": "#6C63FF"
+    }
   }
 }
