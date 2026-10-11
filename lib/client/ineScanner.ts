@@ -1,5 +1,4 @@
 import { PDFDocument } from 'pdf-lib';
-import cvReadyPromise from '@techstark/opencv-js';
 
 export type LocalArtifact = { filename: string; mimeType: string; dataUrl: string; size: number };
 
@@ -41,6 +40,8 @@ function orderCorners(points: Array<{ x: number; y: number }>) {
 }
 
 async function detectAndWarp(file: File): Promise<Blob> {
+  // OpenCV (WASM, ~10 MB) se carga solo al escanear: así no se evalúa durante el build/SSR ni al abrir otras pantallas.
+  const { default: cvReadyPromise } = await import('@techstark/opencv-js');
   const cv = await cvReadyPromise;
   const image = await loadImage(file);
   const maxSide = 1500;
