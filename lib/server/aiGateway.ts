@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { tramites } from '@/lib/tramites';
 
 export type GatewayInput = {
   action: string;
@@ -11,6 +12,11 @@ export type GatewayInput = {
 export type GatewayResult = { reply: string; provider: 'gemini' | 'groq' | 'fallback'; model: string };
 
 const GEMINI_MODEL = process.env.GEMINI_AI_MODEL || 'gemini-3.8-flash';
+// Si el modelo configurado no existe o fue retirado (404), se prueban estos antes de rendirse.
+const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_AI_FALLBACK_MODELS || 'gemini-3.6-flash,gemini-3.5-flash')
+  .split(',')
+  .map((x) => x.trim())
+  .filter((x) => x && x !== GEMINI_MODEL);
 const GROQ_MODEL = process.env.GROQ_AI_MODEL || 'qwen/qwen3.8-27b';
 const VISION_ACTIONS = new Set(['create_cheatsheet', 'create_flashcards', 'fill_form']);
 
@@ -24,6 +30,26 @@ const PROMPTS: Record<string, string> = {
   create_reminder: 'Convierte la petición en un recordatorio claro con título, fecha/hora si fue proporcionada y una nota breve.',
   help_user: 'Ayuda al usuario de Papelería Arcoíris de forma sencilla y práctica.',
 };
+
+// Catálogo real de trámites (lib/tramites.ts): la IA responde con estos datos y no los inventa.
+const CATALOGO_TRAMITES = tramites
+  .map((t) => `- ${t.nombre} (${t.descripcionCorta}). Datos que se piden: ${t.campos.map((c) => `${c.etiqueta} → ${c.ayuda}`).join(' | ')}`)
+  .join('\n');
+
+const REGLAS_TRAMITES =
+  'Trámites disponibles en la app:\n' + CATALOGO_TRAMITES +
+  '\nReglas: el pago y la verificación de seguridad (CAPTCHA) los hace la persona en el portal oficial; la app no paga ni resuelve CAPTCHA. No pidas contraseñas ni datos bancarios. Si no sabes algo del trámite, dilo y sugiere preguntar en la papelería.';
+
+function contextoSeguro(context: Record<string, unknown> | undefined): string {
+  let texto = '{}';
+  try {
+    texto = JSON.stringify(context || {});
+  } catch {
+    texto = '{}';
+  }
+  // El contexto lo manda el cliente: se acota para no inflar el prompt.
+  return texto.length > 4000 ? texto.slice(0, 4000) : texto;
+}
 
 function cleanText(value: string | undefined) { return (value || '').replace(/\u0000/g, '').trim(); }
 function dataUrlParts(value: string) {
@@ -39,7 +65,8 @@ async function gemini(input: GatewayInput): Promise<GatewayResult> {
     'Eres ArcoirisAI, asistente de Papelería Arcoíris.',
     PROMPTS[input.action] || PROMPTS.help_user,
     'Responde en español, con lenguaje claro y accionable.',
-    'Contexto: ' + JSON.stringify(input.context || {}),
+    REGLAS_TRAMITES,
+    'Contexto: ' + contextoSeguro(input.context),
     'Petición: ' + input.message,
   ].join('\n') }];
 
@@ -57,14 +84,25 @@ async function gemini(input: GatewayInput): Promise<GatewayResult> {
     }
   }
 
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [{ role: 'user', parts }],
-    config: { temperature: 0.25 },
-  });
-  const reply = cleanText(response.text);
-  if (!reply) throw new Error('Gemini no devolvió contenido.');
-  return { reply, provider: 'gemini', model: GEMINI_MODEL };
+  let lastError: unknown;
+  for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS]) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts }],
+        config: { temperature: 0.25 },
+      });
+      const reply = cleanText(response.text);
+      if (!reply) throw new Error('Gemini no devolvió contenido.');
+      return { reply, provider: 'gemini', model };
+    } catch (error) {
+      lastError = error;
+      const status = Number((error as { status?: number; code?: number }).status ?? (error as { code?: number }).code);
+      // Solo se prueba otro modelo si este no existe (404) o la petición fue rechazada por el modelo (400).
+      if (status !== 404 && status !== 400) throw error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Gemini no está disponible.');
 }
 
 async function groq(input: GatewayInput): Promise<GatewayResult> {
@@ -73,7 +111,8 @@ async function groq(input: GatewayInput): Promise<GatewayResult> {
   const userContent: Array<Record<string, unknown>> = [{
     type: 'text',
     text: (PROMPTS[input.action] || PROMPTS.help_user)
-      + '\nContexto: ' + JSON.stringify(input.context || {})
+      + '\n' + REGLAS_TRAMITES
+      + '\nContexto: ' + contextoSeguro(input.context)
       + '\nPetición: ' + input.message,
   }];
 

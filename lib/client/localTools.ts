@@ -1,6 +1,15 @@
 import { PDFDocument } from 'pdf-lib';
 
-export type LocalArtifact = { filename: string; mimeType: string; dataUrl: string; size: number };
+export type LocalArtifact = { filename: string; mimeType: string; dataUrl: string; size: number; note?: string };
+
+// createImageBitmap respeta la orientación EXIF (fotos de cámara del celular) y da un error claro con formatos no soportados (p. ej. HEIC).
+async function openBitmap(file: File): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    throw new Error('No se pudo abrir la imagen "' + file.name + '". Usa una foto JPG o PNG.');
+  }
+}
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error || new Error('No se pudo leer el archivo.')); reader.readAsDataURL(file); });
@@ -11,10 +20,12 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string) {
   return 'data:' + mimeType + ';base64,' + btoa(binary);
 }
 async function imageToJpeg(file: File, quality = 0.9): Promise<Blob> {
-  const bitmap = await createImageBitmap(file); const maxDimension = 2200;
+  const bitmap = await openBitmap(file); const maxDimension = 2200;
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   const context = canvas.getContext('2d'); if (!context) throw new Error('Canvas no disponible.');
+  // JPEG no tiene transparencia: sin fondo blanco, los PNG transparentes salían en negro.
+  context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
   return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo convertir la imagen.')), 'image/jpeg', quality));
 }
@@ -38,7 +49,12 @@ export async function compressPdf(file: File): Promise<LocalArtifact> {
   const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false }); const output = await PDFDocument.create();
   const pages = await output.copyPages(source, source.getPageIndices()); pages.forEach((page) => output.addPage(page));
   const bytes = await output.save({ useObjectStreams: true, addDefaultPage: false });
-  return { filename: file.name.replace(/\.pdf$/i, '') + '-optimizado.pdf', mimeType: 'application/pdf', dataUrl: bytesToDataUrl(bytes, 'application/pdf'), size: bytes.byteLength };
+  // Reordenar el PDF no siempre lo hace más ligero: nunca se entrega un archivo más pesado que el original.
+  if (bytes.byteLength >= file.size) {
+    const original = new Uint8Array(await file.arrayBuffer());
+    return { filename: file.name, mimeType: 'application/pdf', dataUrl: bytesToDataUrl(original, 'application/pdf'), size: original.byteLength, note: 'Este PDF ya está optimizado y no se pudo reducir más; se conserva el original.' };
+  }
+  return { filename: file.name.replace(/\.pdf$/i, '') + '-optimizado.pdf', mimeType: 'application/pdf', dataUrl: bytesToDataUrl(bytes, 'application/pdf'), size: bytes.byteLength, note: 'Pasó de ' + (file.size / 1048576).toFixed(2) + ' MB a ' + (bytes.byteLength / 1048576).toFixed(2) + ' MB.' };
 }
 export async function restorePhoto(file: File): Promise<LocalArtifact> {
   const jpeg = await imageToJpeg(file, 0.94); const bitmap = await createImageBitmap(jpeg);
@@ -48,7 +64,7 @@ export async function restorePhoto(file: File): Promise<LocalArtifact> {
   return { filename: 'foto-restaurada.jpg', mimeType: 'image/jpeg', dataUrl: await readAsDataUrl(new File([blob], 'restaurada.jpg', { type: 'image/jpeg' })), size: blob.size };
 }
 export async function credentialSheet(file: File): Promise<LocalArtifact> {
-  const bitmap = await createImageBitmap(file); const targetW = 354; const targetH = 472; const canvas = document.createElement('canvas');
+  const bitmap = await openBitmap(file); const targetW = 354; const targetH = 472; const canvas = document.createElement('canvas');
   canvas.width = targetW * 3; canvas.height = targetH * 3; const context = canvas.getContext('2d'); if (!context) throw new Error('Canvas no disponible.');
   const sourceRatio = bitmap.width / bitmap.height; const targetRatio = targetW / targetH; let sx = 0, sy = 0, sw = bitmap.width, sh = bitmap.height;
   if (sourceRatio > targetRatio) { sw = bitmap.height * targetRatio; sx = (bitmap.width - sw) / 2; } else { sh = bitmap.width / targetRatio; sy = (bitmap.height - sh) / 2; }
