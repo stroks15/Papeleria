@@ -4,11 +4,19 @@
 
 html {
   font-size: 18px;
+  /* Fondo sólido siempre: evita ver el color del WebView (transparente/negro) tras la carga o al hacer overscroll. */
+  background-color: #fbf3e3;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background-color: #fbf3e3;
   color: #2b2420;
+  /* En Android 15+ la app se dibuja edge-to-edge: se deja espacio para barra de estado, notch y barra de navegación. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  overscroll-behavior-y: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
