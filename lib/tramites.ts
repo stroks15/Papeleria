@@ -3,6 +3,19 @@ export type CampoTramite = {
   etiqueta: string;
   placeholder: string;
   ayuda: string;
+  /**
+   * Palabras que suelen aparecer en el nombre/etiqueta del campo equivalente en el
+   * portal oficial. Las usa el autorrelleno de la APK para encontrar dónde escribir.
+   */
+  pistasPortal: string[];
+};
+
+/** Dato listo para que el visor interno intente escribirlo en el portal oficial. */
+export type CampoAutorrelleno = {
+  id: string;
+  label: string;
+  value: string;
+  hints: string[];
 };
 
 export type Tramite = {
@@ -42,6 +55,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Como aparece en tu recibo',
         ayuda:
           'Es el nombre completo que aparece en la parte de arriba de tu recibo anterior.',
+        pistasPortal: ['nombre del servicio', 'nombre del titular', 'nombre', 'titular'],
       },
       {
         id: 'numeroServicio',
@@ -49,6 +63,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Ej. 123456789012',
         ayuda:
           'Este campo corresponde al número de servicio. Puedes encontrarlo en tu recibo anterior.',
+        pistasPortal: ['numero de servicio', 'no de servicio', 'num servicio', 'servicio', 'rpu'],
       },
     ],
     // Los datos de contacto se capturan en el dispositivo; no se almacenan
@@ -70,6 +85,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Ej. ABC1234',
         ayuda:
           'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
+        pistasPortal: ['placa', 'placas', 'matricula'],
       },
     ],
   },
@@ -90,6 +106,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Ej. ABC1234',
         ayuda:
           'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
+        pistasPortal: ['placa', 'placas', 'matricula'],
       },
     ],
   },
@@ -109,6 +126,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Ej. ABC1234',
         ayuda:
           'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
+        pistasPortal: ['placa', 'placas', 'matricula'],
       },
     ],
   },
@@ -128,6 +146,7 @@ export const tramites: Tramite[] = [
         placeholder: 'Ej. ABC1234',
         ayuda:
           'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
+        pistasPortal: ['placa', 'placas', 'matricula'],
       },
     ],
   },
@@ -146,10 +165,29 @@ export const tramites: Tramite[] = [
         etiqueta: 'Número de cuenta',
         placeholder: 'Como aparece en tu recibo anterior',
         ayuda: 'Lo encuentras en la parte superior de tu último recibo de agua.',
+        pistasPortal: ['numero de cuenta', 'no de cuenta', 'cuenta'],
       },
     ],
   },
 ];
+
+/**
+ * Arma la lista de datos que el visor interno (APK) intentará escribir en el portal.
+ * Solo incluye campos con valor; nunca incluye contactos ni nada que la persona no haya capturado.
+ */
+export function camposParaAutorrelleno(
+  tramite: Tramite,
+  valores: Record<string, string>,
+): CampoAutorrelleno[] {
+  return tramite.campos
+    .map((campo) => ({
+      id: campo.id,
+      label: campo.etiqueta,
+      value: (valores[campo.id] ?? '').trim(),
+      hints: campo.pistasPortal,
+    }))
+    .filter((campo) => campo.value.length > 0);
+}
 
 export function getTramitePorSlug(slug: string): Tramite | undefined {
   return tramites.find((t) => t.slug === slug);
