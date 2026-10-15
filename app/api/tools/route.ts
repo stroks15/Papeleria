@@ -25,10 +25,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const name = typeof body.name === 'string' ? body.name : '';
     const args = body.args && typeof body.args === 'object' ? body.args : {};
-    const images = Array.isArray(body.images)
+    const images: string[] = Array.isArray(body.images)
       ? body.images.filter((x: unknown): x is string => typeof x === 'string' && x.startsWith('data:image/')).slice(0, MAX_IMAGES)
       : [];
-    const files = Array.isArray(body.files)
+    const files: Array<{ data: string; mimeType: string; name: string }> = Array.isArray(body.files)
       ? body.files.filter((x: unknown): x is { data: string; mimeType: string; name: string } =>
           !!x && typeof x === 'object' && typeof (x as any).data === 'string' && typeof (x as any).mimeType === 'string' && typeof (x as any).name === 'string',
         ).slice(0, MAX_FILES)
