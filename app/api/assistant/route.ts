@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
 import { executeAssistantTool, type ToolArtifact } from '@/lib/server/assistantTools';
 import { runAiTask } from '@/lib/server/aiGateway';
 import { createAdSvg, createPrintOrderArtifact } from '@/lib/server/toolFallbacks';
+import { jsonWithCors, preflight } from '@/lib/server/cors';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const LOCAL_ACTIONS = new Set([
   'create_pdf_from_photos',
@@ -27,6 +28,10 @@ type Body = {
   files?: FileInput[];
 };
 
+export async function OPTIONS(req: Request) {
+  return preflight(req);
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
@@ -39,9 +44,9 @@ export async function POST(req: Request) {
       ? body.files.filter((x): x is FileInput => !!x && typeof x.data === 'string' && typeof x.mimeType === 'string' && typeof x.name === 'string').slice(0, MAX_FILES)
       : [];
 
-    if (!message) return NextResponse.json({ ok: false, error: 'Falta el mensaje.' }, { status: 400 });
-    if (images.some((x) => x.length > MAX_IMAGE_CHARS)) return NextResponse.json({ ok: false, error: 'Una imagen supera el tamaño permitido.' }, { status: 413 });
-    if (files.some((x) => x.data.length > MAX_FILE_CHARS)) return NextResponse.json({ ok: false, error: 'Un archivo supera el tamaño permitido.' }, { status: 413 });
+    if (!message) return jsonWithCors(req, { ok: false, error: 'Falta el mensaje.' }, { status: 400 });
+    if (images.some((x) => x.length > MAX_IMAGE_CHARS)) return jsonWithCors(req, { ok: false, error: 'Una imagen supera el tamaño permitido.' }, { status: 413 });
+    if (files.some((x) => x.data.length > MAX_FILE_CHARS)) return jsonWithCors(req, { ok: false, error: 'Un archivo supera el tamaño permitido.' }, { status: 413 });
 
     let artifact: ToolArtifact | undefined;
     let summary: unknown = null;
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
         message,
         files.map((file) => ({ name: file.name, size: file.data.length, mimeType: file.mimeType })),
       );
-      return NextResponse.json({
+      return jsonWithCors(req, {
         ok: true,
         reply: 'Pedido preparado. Revisa los datos y confirma la impresión en la papelería.',
         action,
@@ -69,7 +74,7 @@ export async function POST(req: Request) {
     }
 
     if (LOCAL_ACTIONS.has(action)) {
-      return NextResponse.json({
+      return jsonWithCors(req, {
         ok: true,
         reply: 'Listo. El procesamiento se realizó sin consumir IA.',
         action,
@@ -92,7 +97,7 @@ export async function POST(req: Request) {
       artifact = createAdSvg(ai.reply, images[0]);
     }
 
-    return NextResponse.json({
+    return jsonWithCors(req, {
       ok: true,
       reply: ai.reply,
       action,
@@ -104,7 +109,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('ArcoirisAI error:', error);
-    return NextResponse.json({
+    return jsonWithCors(req, {
       ok: false,
       error: error instanceof Error ? error.message : 'Error interno de ArcoirisAI.',
     }, { status: 500 });

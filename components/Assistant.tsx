@@ -5,6 +5,10 @@ import { Capacitor } from '@capacitor/core';
 import type { Tramite } from '@/lib/tramites';
 import { nombresPasos } from '@/lib/tramites';
 
+// Color de marca duplicado a propósito: si la hoja de estilos del tema no cargara
+// en el WebView de la APK, el asistente seguiría siendo visible.
+const COLOR_OFICIAL = '#2E5A6C';
+
 type AssistantProps = { modo?: 'inicio' | 'tramite'; tramite?: Tramite; pasoActual?: number; ayudaCampoActivo?: string };
 type AssistantContext = { currentModule: string; currentStep: string | number };
 type Artifact = { filename: string; mimeType: string; dataBase64: string; size: number };
@@ -56,10 +60,10 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
     try {
       const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : window.location.origin);
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 30000);
+      const timeout = window.setTimeout(() => controller.abort(), 35000);
       let response: Response;
       try {
-        response = await fetch(apiBase.replace(/\/$/, '') + '/api/assistant', {
+        response = await fetch(apiBase.replace(/\/$/, '') + '/api/assistant/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -91,8 +95,8 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
       }
       setEntrada('');
       if (data.artifact) setAdjuntos([]);
-    } catch {
-      setMensaje('No pude conectar con ArcoirisAI. Intenta de nuevo.');
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : 'No pude conectar con ArcoirisAI. Intenta de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -130,13 +134,13 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
 
   return (
     <>
-      <button type="button" onClick={() => setAbierto(true)} aria-label="Abrir asistente" className="fixed bottom-20 right-4 z-40 flex h-[68px] w-[68px] items-center justify-center rounded-full border-4 border-white bg-oficial text-4xl text-white shadow-[0_8px_28px_rgba(0,0,0,.35)]">
+      <button type="button" onClick={() => setAbierto(true)} aria-label="Abrir asistente" style={{ backgroundColor: COLOR_OFICIAL, color: '#FFFFFF', bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }} className="fixed right-4 z-40 flex h-[68px] w-[68px] items-center justify-center rounded-full border-4 border-white text-4xl shadow-[0_8px_28px_rgba(0,0,0,.35)]">
         🌈
       </button>
 
       {abierto && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-3 pb-3" onClick={() => setAbierto(false)}>
-          <div className="w-full max-w-md rounded-[28px] border-2 border-black/10 bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center px-3" style={{ backgroundColor: 'rgba(0,0,0,0.75)', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }} onClick={() => setAbierto(false)}>
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[28px] border-2 border-black/10 p-5 shadow-2xl" style={{ backgroundColor: '#FFFFFF', color: '#2B2420' }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <span className="block font-display text-xl font-bold text-tinta">ArcoirisAI</span>
@@ -157,13 +161,13 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
             {archivoGenerado && (
               <div className="mb-3 rounded-2xl border-2 border-black/10 bg-papel p-3">
                 <p className="text-sm font-bold text-tinta">Archivo listo: {archivoGenerado.filename}</p>
-                <button type="button" onClick={()=>void descargarArtifact()} className="mt-2 rounded-xl bg-oficial px-4 py-2 text-sm font-bold text-white">Descargar</button>
+                <button type="button" onClick={()=>void descargarArtifact()} style={{ backgroundColor: COLOR_OFICIAL, color: '#FFFFFF' }} className="mt-2 rounded-xl px-4 py-2 text-sm font-bold">Descargar</button>
               </div>
             )}
 
             <div className="mb-3 flex gap-2">
               <input value={entrada} onChange={(e) => setEntrada(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void consultarArcoirisAI(entrada); }} placeholder="Escribe tu pregunta…" className="min-w-0 flex-1 rounded-full border-2 border-black/10 bg-white px-4 py-3 text-base text-tinta outline-none focus:border-oficial" aria-label="Mensaje para ArcoirisAI" />
-              <button type="button" onClick={() => void consultarArcoirisAI(entrada)} disabled={cargando || !entrada.trim()} className="rounded-full bg-oficial px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{cargando ? '…' : 'Enviar'}</button>
+              <button type="button" onClick={() => void consultarArcoirisAI(entrada)} disabled={cargando || !entrada.trim()} style={{ backgroundColor: COLOR_OFICIAL, color: '#FFFFFF' }} className="rounded-full px-5 py-3 text-sm font-bold disabled:opacity-50">{cargando ? '…' : 'Enviar'}</button>
             </div>
 
             <div className="flex flex-wrap gap-2">
