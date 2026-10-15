@@ -43,7 +43,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? "https://papeleria-arcoiris.vercel.app" : "")
-      const res = await fetch(`${apiBase}/api/assistant`, {
+      const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/assistant/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, sessionId })
