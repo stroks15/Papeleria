@@ -39,3 +39,6 @@ export function jsonConCors(
 export function preflight(req: Request) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
+
+/** Alias en inglés usado por /api/assistant y /api/tools. */
+export const jsonWithCors = jsonConCors;
