@@ -6,14 +6,14 @@ de Vercel (un `requirements.txt` en la raíz hace que Vercel detecte un proyecto
 
 ## Dónde está la copia completa
 
-Etiqueta de git **`respaldo-ofertas-2026-10-15`** (apunta al commit de `main` previo a la limpieza,
+Rama de git **`respaldo-ofertas-2026-10-15`** (no la borres; apunta al commit de `main` previo a la limpieza,
 `b70df44`). Contiene los 8 archivos intactos. Para recuperar cualquiera:
 
 ```bash
-git fetch origin tag respaldo-ofertas-2026-10-15
-git show respaldo-ofertas-2026-10-15:monitor_ofertas.py > monitor_ofertas.py
+git fetch origin respaldo-ofertas-2026-10-15
+git show origin/respaldo-ofertas-2026-10-15:monitor_ofertas.py > monitor_ofertas.py
 # o varios a la vez:
-git checkout respaldo-ofertas-2026-10-15 -- preflight.py requirements.txt
+git checkout origin/respaldo-ofertas-2026-10-15 -- preflight.py requirements.txt
 ```
 
 ## Comparación contra DexterH4ck-ofertas (rama main, 2026-10-15)
