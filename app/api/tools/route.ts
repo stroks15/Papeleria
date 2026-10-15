@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { executeAssistantTool } from '@/lib/server/assistantTools';
+import { jsonWithCors, preflight } from '@/lib/server/cors';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +16,10 @@ const MAX_FILES = 5;
 const MAX_IMAGE_CHARS = 8_000_000;
 const MAX_FILE_CHARS = 70_000_000;
 
+export async function OPTIONS(req: Request) {
+  return preflight(req);
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -30,15 +34,15 @@ export async function POST(req: Request) {
         ).slice(0, MAX_FILES)
       : [];
 
-    if (!name) return NextResponse.json({ ok: false, error: 'Falta el nombre de la herramienta.' }, { status: 400 });
-    if (!ALLOWED_TOOLS.has(name)) return NextResponse.json({ ok: false, error: 'Herramienta no permitida.' }, { status: 403 });
-    if (images.some((image) => image.length > MAX_IMAGE_CHARS)) return NextResponse.json({ ok: false, error: 'Una imagen supera el tamaño permitido.' }, { status: 413 });
-    if (files.some((file) => file.data.length > MAX_FILE_CHARS)) return NextResponse.json({ ok: false, error: 'Un archivo supera el tamaño permitido.' }, { status: 413 });
+    if (!name) return jsonWithCors(req, { ok: false, error: 'Falta el nombre de la herramienta.' }, { status: 400 });
+    if (!ALLOWED_TOOLS.has(name)) return jsonWithCors(req, { ok: false, error: 'Herramienta no permitida.' }, { status: 403 });
+    if (images.some((image) => image.length > MAX_IMAGE_CHARS)) return jsonWithCors(req, { ok: false, error: 'Una imagen supera el tamaño permitido.' }, { status: 413 });
+    if (files.some((file) => file.data.length > MAX_FILE_CHARS)) return jsonWithCors(req, { ok: false, error: 'Un archivo supera el tamaño permitido.' }, { status: 413 });
 
     const result = await executeAssistantTool(name, args, images, files);
-    return NextResponse.json({ ok: true, ...result });
+    return jsonWithCors(req, { ok: true, ...result });
   } catch (error) {
     console.error('Tool error:', error);
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'No se pudo ejecutar la herramienta.' }, { status: 400 });
+    return jsonWithCors(req, { ok: false, error: error instanceof Error ? error.message : 'No se pudo ejecutar la herramienta.' }, { status: 400 });
   }
 }
