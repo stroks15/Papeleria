@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AssistantProvider } from "@/context/AssistantContext";
 import { AIServiceCard } from "@/components/AIServiceCard";
 import Assistant from "@/components/Assistant";
@@ -20,6 +21,17 @@ export default function Home() {
         <p className="text-lg mt-2 mb-4">
           Te ayudamos a realizar tus trámites digitales paso a paso
         </p>
+
+        <Link
+          href="/ventanilla"
+          className="mb-4 flex items-center gap-4 rounded-3xl bg-[#2E5A6C] p-4 text-white shadow-sm active:scale-[0.98]"
+        >
+          <span className="text-3xl" aria-hidden>🏛️</span>
+          <span className="flex flex-col">
+            <span className="text-lg font-bold">Ventanilla Digital CDMX</span>
+            <span className="text-sm opacity-90">Tenencia, verificación y actas del Registro Civil</span>
+          </span>
+        </Link>
 
         <section className="grid grid-cols-1 gap-3" aria-label="Trámites disponibles">
           {tramites.map((tramite) => (
