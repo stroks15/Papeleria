@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Tramite } from '@/lib/tramites';
 import ProgresoPasos from './ProgresoPasos';
 import Assistant from './Assistant';
+import { urlSinConsulta } from '@/lib/ventanilla/tipos';
 import { cargarBorrador, guardarBorrador, borrarBorrador } from '@/lib/tramiteDraft';
 import { guardarSesion, registrarEvento } from '@/lib/supabase';
 import { abrirSitioOficial } from '@/lib/officialBrowser';
@@ -25,6 +26,8 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
   const [copiado, setCopiado] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
   const [errorSitio, setErrorSitio] = useState<string | null>(null);
+  // Página del portal que la persona tiene abierta (sin parámetros de consulta: pueden traer tokens).
+  const [paginaAbierta, setPaginaAbierta] = useState<string | undefined>(undefined);
   const [borradorCargado, setBorradorCargado] = useState(false);
 
   useEffect(() => {
@@ -82,6 +85,17 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
 
   const todosLosCamposLlenos = tramite.campos.every((c) => valores[c.id]?.trim());
 
+  const eventosPortal = {
+    onNavegacion: (destino: string) => {
+      try {
+        setPaginaAbierta(urlSinConsulta(destino));
+      } catch {
+        /* URL no válida: se ignora */
+      }
+    },
+    onCerrado: () => setPaginaAbierta(undefined),
+  };
+
   async function abrirSitioOficialDesdeApp() {
     registrarEvento(tramite.slug, 'completado');
     setErrorSitio(null);
@@ -91,7 +105,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
     guardarBorrador(tramite.slug, { paso, valores });
 
     try {
-      await abrirSitioOficial(tramite.urlOficial);
+      await abrirSitioOficial(tramite.urlOficial, eventosPortal);
     } catch {
       setErrorSitio(
         'No se pudo abrir el sitio oficial. Verifica tu conexión e inténtalo de nuevo.',
@@ -243,8 +257,10 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                 Si el sitio oficial te pide una verificación
               </p>
               <p className="mt-1 text-sm text-tinta-suave">
-                El sitio oficial requiere una verificación de seguridad. Completa el
-                CAPTCHA para continuar.
+                El sitio oficial se abre dentro de la app. Si te pide una verificación
+                de seguridad, complétala ahí mismo (la app no puede resolver CAPTCHAs
+                por ti). Cuando termines, toca «Cerrar» y pregúntale a ArcoirisAI
+                «¿Qué sigue?».
               </p>
             </div>
 
@@ -257,7 +273,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
                     e.preventDefault();
                     try {
                       guardarBorrador(tramite.slug, { paso, valores });
-                      await abrirSitioOficial(tramite.urlOficial);
+                      await abrirSitioOficial(tramite.urlOficial, eventosPortal);
                     } catch {
                       setErrorSitio('No se pudo abrir el sitio oficial. Intenta de nuevo.');
                     }
@@ -295,6 +311,7 @@ export default function TramiteFlow({ tramite }: { tramite: Tramite }) {
         tramite={tramite}
         pasoActual={paso}
         ayudaCampoActivo={campoActivo?.ayuda}
+        paginaAbierta={paginaAbierta}
       />
     </div>
   );

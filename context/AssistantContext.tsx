@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
-import { Capacitor } from "@capacitor/core"
+import { llamarApi } from "../lib/client/api"
 import { supabase } from "../lib/supabase"
 
 type Message = { id: string; from: "user" | "assistant"; text: string; createdAt: string }
@@ -42,14 +42,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     setMessages(prev => [...prev, userMsg])
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? "https://papeleria-arcoiris.vercel.app" : "")
-      const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/assistant/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, sessionId })
-      })
-
-      const data = await res.json()
+      const data = await llamarApi<{ reply: string }>("/api/assistant", { method: "POST", timeoutMs: 35000, body: { message: text, sessionId } })
       const reply: Message = { id: String(Date.now() + 1), from: "assistant", text: data.reply, createdAt: new Date().toISOString() }
       setMessages(prev => [...prev, reply])
 
@@ -62,7 +55,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       }
 
     } catch (e) {
-      const fallback: Message = { id: String(Date.now() + 2), from: "assistant", text: "Perdón, tuve un problema al procesar tu solicitud. Intenta de nuevo." , createdAt: new Date().toISOString() }
+      const fallback: Message = { id: String(Date.now() + 2), from: "assistant", text: e instanceof Error ? e.message : "Perdón, tuve un problema al procesar tu solicitud. Intenta de nuevo." , createdAt: new Date().toISOString() }
       setMessages(prev => [...prev, fallback])
     }
   }

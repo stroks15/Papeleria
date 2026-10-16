@@ -88,6 +88,7 @@ function basePrompt(input: GatewayInput) {
     PROMPTS[input.action] || PROMPTS.help_user,
     'Responde en español, con lenguaje claro y accionable.',
     'Contexto: ' + JSON.stringify(input.context || {}),
+    'Si el contexto trae "openPage", la persona tiene abierta esa página oficial dentro de la app. Tú NO ves su contenido: guíala con base en el trámite, los campos esperados ("fields") y la ruta de la URL, y si dudas pídele que describa o adjunte una captura. Nunca pidas ni repitas contraseñas, CURP ni datos bancarios.',
     'Petición: ' + input.message,
   ].join('\n');
 }
