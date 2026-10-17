@@ -55,7 +55,7 @@ export function apiBase(): string {
   if (guardado && urlValida(guardado)) return normalizar(guardado);
   const configurado = process.env.NEXT_PUBLIC_ASSISTANT_API_URL;
   if (configurado) return normalizar(configurado);
-  if (Capacitor.isNativePlatform()) return 'https://papeleria-arcoiris.vercel.app';
+  if (Capacitor.isNativePlatform()) return 'https://papeleria-flax.vercel.app';
   return window.location.origin;
 }
 
