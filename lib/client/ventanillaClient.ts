@@ -1,10 +1,12 @@
 'use client';
 
 import { Capacitor, CapacitorHttp, type PluginListenerHandle } from '@capacitor/core';
+import { apiBase, llamarApi } from '@/lib/client/api';
 import { Preferences } from '@capacitor/preferences';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import {
   esHostOficial,
+  esHostGubernamental,
   esUrlDePdf,
   urlSinConsulta,
   type RespuestaTramite,
@@ -16,13 +18,6 @@ import {
 // ---------------------------------------------------------------------------
 export function esAppNativa(): boolean {
   return Capacitor.isNativePlatform();
-}
-
-function apiBase(): string {
-  const base =
-    process.env.NEXT_PUBLIC_ASSISTANT_API_URL ||
-    (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : window.location.origin);
-  return base.replace(/\/$/, '');
 }
 
 function aArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -116,27 +111,11 @@ async function agregarHistorial(doc: DocumentoReciente): Promise<DocumentoRecien
 const TIMEOUT_API_MS = 35_000;
 
 export async function consultarApi(tipo: TipoTramite, placa?: string): Promise<RespuestaTramite> {
-  const controlador = new AbortController();
-  const temporizador = window.setTimeout(() => controlador.abort(), TIMEOUT_API_MS);
-  // La barra final es obligatoria: next.config usa trailingSlash y una redirección
-  // 308 entre orígenes (APK -> Vercel) la bloquearía CORS.
   const consulta = placa ? `?placa=${encodeURIComponent(placa)}` : '';
-  try {
-    const res = await fetch(`${apiBase()}/api/tramites/${tipo}/${consulta}`, {
-      signal: controlador.signal,
-      headers: { Accept: 'application/json' },
-    });
-    const cuerpo = (await res.json()) as RespuestaTramite;
-    if (!cuerpo || typeof cuerpo.status !== 'string') throw new Error('respuesta_invalida');
-    return cuerpo;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('El servidor tardó demasiado en responder. Inténtalo de nuevo en unos minutos.');
-    }
-    throw new Error('No se pudo conectar con el servidor. Revisa tu conexión a Internet.');
-  } finally {
-    window.clearTimeout(temporizador);
-  }
+  // llamarApi agrega la barra final (trailingSlash) y reintenta con HTTP nativo en la APK.
+  const cuerpo = await llamarApi<RespuestaTramite>(`/api/tramites/${tipo}${consulta}`, { timeoutMs: TIMEOUT_API_MS });
+  if (!cuerpo || typeof cuerpo.status !== 'string') throw new Error('El servidor devolvió una respuesta inválida.');
+  return cuerpo;
 }
 
 type CuerpoRegistro = {
@@ -314,11 +293,8 @@ export type EventosPortal = {
 };
 
 export async function abrirPortal(url: string, eventos: EventosPortal): Promise<SesionPortal> {
-  if (!esHostOficial(url)) throw new Error('El dominio no está permitido para sitios oficiales.');
-
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new Error('No hay conexión a Internet. Conéctate e inténtalo de nuevo.');
-  }
+  if (!esHostOficial(url) && !esHostGubernamental(url)) throw new Error('El dominio no está permitido para sitios oficiales.');
+  // No se consulta navigator.onLine: en el WebView de Android da falsos "sin conexión".
 
   if (!Capacitor.isNativePlatform()) {
     // En el navegador no se puede observar la navegación de otra pestaña.

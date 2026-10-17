@@ -69,6 +69,17 @@ export function esHostOficial(url: string): boolean {
   }
 }
 
+/** Portales de gobierno/CFE que los trámites del menú abren dentro de la app (solo https). */
+export function esHostGubernamental(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase().replace(/\.$/, '');
+    return u.protocol === 'https:' && (h.endsWith('.gob.mx') || h === 'cfe.mx' || h.endsWith('.cfe.mx'));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * ¿Es la URL final de un PDF generado por un portal oficial?
  * Criterio estricto a propósito: una coincidencia falsa cerraría el WebView antes de tiempo.

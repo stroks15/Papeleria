@@ -23,7 +23,7 @@ const MAX_FILE_CHARS = 70_000_000;
 type FileInput = { data: string; mimeType: string; name: string };
 type Body = {
   message?: string;
-  context?: { currentModule?: string; currentStep?: string | number; requestedAction?: string };
+  context?: { currentModule?: string; currentStep?: string | number; requestedAction?: string; openPage?: string; fields?: string[] };
   images?: string[];
   files?: FileInput[];
 };

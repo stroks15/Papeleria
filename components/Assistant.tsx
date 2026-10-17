@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { Tramite } from '@/lib/tramites';
 import { nombresPasos } from '@/lib/tramites';
+import { llamarApi, ApiError } from '@/lib/client/api';
+import AjusteServidor from '@/components/AjusteServidor';
 
 // Color de marca duplicado a propósito: si la hoja de estilos del tema no cargara
 // en el WebView de la APK, el asistente seguiría siendo visible.
 const COLOR_OFICIAL = '#2E5A6C';
 
-type AssistantProps = { modo?: 'inicio' | 'tramite'; tramite?: Tramite; pasoActual?: number; ayudaCampoActivo?: string };
-type AssistantContext = { currentModule: string; currentStep: string | number };
+type AssistantProps = { modo?: 'inicio' | 'tramite'; tramite?: Tramite; pasoActual?: number; ayudaCampoActivo?: string; paginaAbierta?: string };
+type AssistantContext = { currentModule: string; currentStep: string | number; openPage?: string; fields?: string[] };
 type Artifact = { filename: string; mimeType: string; dataBase64: string; size: number };
 type Attachment = { data: string; mimeType: string; name: string };
 type AssistantResponse = { ok: boolean; reply?: string; action?: string; parameters?: Record<string, unknown>; artifact?: Artifact; error?: string };
@@ -24,13 +26,14 @@ function readFile(file: File): Promise<string> {
   });
 }
 
-export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaCampoActivo }: AssistantProps) {
+export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaCampoActivo, paginaAbierta }: AssistantProps) {
   const [abierto, setAbierto] = useState(false);
   const [mensaje, setMensaje] = useState(mensajeInicial());
   const [entrada, setEntrada] = useState('');
   const [cargando, setCargando] = useState(false);
   const [adjuntos, setAdjuntos] = useState<Attachment[]>([]);
   const [archivoGenerado, setArchivoGenerado] = useState<Artifact | null>(null);
+  const [fallaConexion, setFallaConexion] = useState(false);
 
   function mensajeInicial() {
     if (modo === 'inicio') return 'Hola. Soy tu asistente de Papelería Arcoíris. Puedo ayudarte con herramientas, documentos y trámites.';
@@ -39,7 +42,13 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
   }
 
   function contextoActual(): AssistantContext {
-    return { currentModule: tramite?.nombre ?? modo, currentStep: pasoActual ?? 'inicio' };
+    return {
+      currentModule: tramite?.nombre ?? modo,
+      currentStep: pasoActual ?? 'inicio',
+      // Solo nombres de campos y la ruta de la página: nunca los valores que escribió la persona.
+      openPage: paginaAbierta,
+      fields: tramite?.campos.map((c) => c.etiqueta),
+    };
   }
 
   async function seleccionarArchivos(files: FileList | null) {
@@ -57,34 +66,19 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
     const texto = mensajeDelUsuario.trim();
     if (!texto || cargando) return;
     setCargando(true);
+    setFallaConexion(false);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_ASSISTANT_API_URL || (Capacitor.isNativePlatform() ? 'https://papeleria-arcoiris.vercel.app' : window.location.origin);
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 35000);
-      let response: Response;
-      try {
-        response = await fetch(apiBase.replace(/\/$/, '') + '/api/assistant/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: texto,
-            context: contextoActual(),
-            images: adjuntos.filter((x) => x.mimeType.startsWith('image/')).map((x) => x.data),
-            files: adjuntos,
-          }),
-          signal: controller.signal,
-        });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') throw new Error('ArcoirisAI tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.');
-        throw new Error('No se pudo conectar con ArcoirisAI. Revisa tu conexión a Internet e inténtalo de nuevo.');
-      } finally {
-        window.clearTimeout(timeout);
-      }
-      const raw = await response.text();
-      let data: AssistantResponse;
-      try { data = JSON.parse(raw) as AssistantResponse; }
-      catch { throw new Error(response.ok ? 'El servidor devolvió una respuesta inválida.' : 'El servidor no está disponible en este momento.'); }
-      if (!response.ok || !data.ok) {
+      const data = await llamarApi<AssistantResponse>('/api/assistant', {
+        method: 'POST',
+        timeoutMs: 35000,
+        body: {
+          message: texto,
+          context: contextoActual(),
+          images: adjuntos.filter((x) => x.mimeType.startsWith('image/')).map((x) => x.data),
+          files: adjuntos,
+        },
+      });
+      if (!data.ok) {
         setMensaje(data.error || 'No pude procesar tu solicitud.');
         return;
       }
@@ -96,6 +90,7 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
       setEntrada('');
       if (data.artifact) setAdjuntos([]);
     } catch (error) {
+      if (error instanceof ApiError && error.causa !== 'tiempo') setFallaConexion(true);
       setMensaje(error instanceof Error ? error.message : 'No pude conectar con ArcoirisAI. Intenta de nuevo.');
     } finally {
       setCargando(false);
@@ -105,7 +100,7 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
   function responder(tipo: 'no-se' | 'que-sigue' | 'repetir') {
     if (tipo === 'repetir') return void consultarArcoirisAI('Repite y explícame de forma sencilla el paso actual.');
     if (tipo === 'no-se') return void consultarArcoirisAI(ayudaCampoActivo ? 'No sé qué poner aquí. Ayúdame con este campo: ' + ayudaCampoActivo : 'No sé qué poner aquí. Explícame qué debo escribir.');
-    void consultarArcoirisAI('¿Qué sigue? Explícame el siguiente paso.');
+    void consultarArcoirisAI(paginaAbierta ? '¿Qué sigue? Tengo abierta la página ' + paginaAbierta + ' del portal oficial. Dime cómo llenar este trámite y cuál es el siguiente paso.' : '¿Qué sigue? Explícame el siguiente paso.');
   }
 
   async function descargarArtifact() {
@@ -155,6 +150,8 @@ export default function Assistant({ modo = 'inicio', tramite, pasoActual, ayudaC
               📎 Adjuntar imagen o PDF (opcional)
               <input type="file" accept="image/*,application/pdf,.pdf" multiple className="sr-only" onChange={(e) => void seleccionarArchivos(e.target.files)} />
             </label>
+
+            {fallaConexion && <AjusteServidor />}
 
             {adjuntos.length > 0 && <p className="mb-3 rounded-xl bg-papel px-3 py-2 text-xs font-semibold text-tinta">{adjuntos.length} archivo(s) adjunto(s).</p>}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { abrirPortal, type EventosPortal } from '@/lib/client/ventanillaClient';
 
 type ExternalBrowserPlugin = {
   open(options: { url: string }): Promise<void>;
@@ -30,19 +31,25 @@ function validarUrl(url: string): URL {
 }
 
 /**
- * Abre el trámite en el navegador externo del teléfono.
- * No usa WebView/InAppBrowser y nunca intenta rellenar campos automáticamente.
+ * Abre el trámite DENTRO de la app (navegador integrado, igual que la Ventanilla).
+ * Si el navegador integrado falla, cae al navegador del teléfono. Nunca rellena
+ * campos automáticamente. `eventos` permite saber en qué página está la persona.
  */
-export async function abrirSitioOficial(url: string): Promise<void> {
+export async function abrirSitioOficial(url: string, eventos?: Partial<EventosPortal>): Promise<void> {
   const parsed = validarUrl(url);
 
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new Error('No hay conexión a Internet. Conéctate e inténtalo de nuevo.');
-  }
-
   if (Capacitor.isNativePlatform()) {
-    await ExternalBrowser.open({ url: parsed.toString() });
-    return;
+    try {
+      await abrirPortal(parsed.toString(), {
+        onPdf: eventos?.onPdf ?? (() => undefined),
+        onCerrado: eventos?.onCerrado ?? (() => undefined),
+        onNavegacion: eventos?.onNavegacion,
+      });
+      return;
+    } catch {
+      await ExternalBrowser.open({ url: parsed.toString() });
+      return;
+    }
   }
 
   window.open(parsed.toString(), '_blank', 'noopener,noreferrer');
