@@ -59,7 +59,7 @@ from urllib.parse import urlparse
 
 FALLBACK = "REQUIRES_VIEWPORT_FALLBACK"
 
-CONTACT_URL = os.environ.get("CDMX_CONTACT_URL", "https://papeleria-arcoiris.vercel.app")
+CONTACT_URL = os.environ.get("CDMX_CONTACT_URL", "https://papeleria-flax.vercel.app")
 USER_AGENT = (
     f"PapeleriaArcoiris/1.0 (+{CONTACT_URL}; consulta individual solicitada por la persona usuaria)"
 )
