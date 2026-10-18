@@ -22,6 +22,23 @@ export default function Home() {
           Te ayudamos a realizar tus trámites digitales paso a paso
         </p>
 
+        <section className="mb-4 grid grid-cols-1 gap-3" aria-label="Herramientas nuevas">
+          <Link href="/herramientas/creador-pdf" className="flex items-center gap-4 rounded-3xl bg-carta p-4 shadow-sm ring-2 ring-[#2E5A6C] active:scale-[0.98]">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-papel text-2xl" aria-hidden>📄</span>
+            <span className="flex flex-col">
+              <span className="font-display text-lg font-bold text-tinta">Creador de PDF con diseños</span>
+              <span className="text-sm text-tinta-suave">Fotos de cámara o galería en 1, 2, 3, 4 por hoja o acomodo libre.</span>
+            </span>
+          </Link>
+          <Link href="/herramientas/reorganizar-documento" className="flex items-center gap-4 rounded-3xl bg-carta p-4 shadow-sm ring-2 ring-[#2E5A6C] active:scale-[0.98]">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-papel text-2xl" aria-hidden>🗂️</span>
+            <span className="flex flex-col">
+              <span className="font-display text-lg font-bold text-tinta">Reorganizar imágenes de un documento</span>
+              <span className="text-sm text-tinta-suave">Saca las imágenes de un PDF o Word y acomódalas en hojas nuevas.</span>
+            </span>
+          </Link>
+        </section>
+
         <Link
           href="/ventanilla"
           className="mb-4 flex items-center gap-4 rounded-3xl bg-[#2E5A6C] p-4 text-white shadow-sm active:scale-[0.98]"
@@ -32,23 +49,6 @@ export default function Home() {
             <span className="text-sm opacity-90">Tenencia, verificación y actas del Registro Civil</span>
           </span>
         </Link>
-
-        <div className="mb-4 grid grid-cols-1 gap-3">
-          <Link href="/herramientas/creador-pdf" className="flex items-center gap-4 rounded-3xl bg-carta p-4 shadow-sm ring-1 ring-tinta/5 active:scale-[0.98]">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-papel text-2xl" aria-hidden>📄</span>
-            <span className="flex flex-col">
-              <span className="font-display text-lg font-bold text-tinta">Creador de PDF con diseños</span>
-              <span className="text-sm text-tinta-suave">Fotos de cámara o galería en 1, 2, 3, 4 por hoja o acomodo libre.</span>
-            </span>
-          </Link>
-          <Link href="/herramientas/reorganizar-documento" className="flex items-center gap-4 rounded-3xl bg-carta p-4 shadow-sm ring-1 ring-tinta/5 active:scale-[0.98]">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-papel text-2xl" aria-hidden>🗂️</span>
-            <span className="flex flex-col">
-              <span className="font-display text-lg font-bold text-tinta">Reorganizar imágenes de un documento</span>
-              <span className="text-sm text-tinta-suave">Saca las imágenes de un PDF o Word y acomódalas en hojas nuevas.</span>
-            </span>
-          </Link>
-        </div>
 
         <section className="grid grid-cols-1 gap-3" aria-label="Trámites disponibles">
           {tramites.map((tramite) => (
