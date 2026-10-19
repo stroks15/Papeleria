@@ -1,10 +1,10 @@
-import { plantillaPorId, type PlantillaId } from '@/lib/pdfLayout';
+import { plantillaPorId, HOJA, type PlantillaId } from '@/lib/pdfLayout';
 
 /** Hoja en miniatura hecha solo con divs: muestra cómo se reparte una plantilla. */
 export default function MiniaturaLayout({ plantilla, ancho = 64 }: { plantilla: PlantillaId; ancho?: number }) {
   const { ranuras } = plantillaPorId(plantilla);
   return (
-    <div className="relative rounded-sm border border-black/20 bg-white shadow-sm" style={{ width: ancho, height: ancho * 1.414 }} aria-hidden>
+    <div className="relative rounded-sm border border-black/20 bg-white shadow-sm" style={{ width: ancho, height: (ancho * HOJA.alto) / HOJA.ancho }} aria-hidden>
       <div className="absolute" style={{ inset: '6%' }}>
         {ranuras.map((r, i) => (
           <div

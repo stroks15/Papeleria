@@ -121,7 +121,7 @@ export function colocaciones(pagina: Pagina): Colocacion[] {
   const { ranuras } = plantillaPorId(pagina.plantilla);
   const salida: Colocacion[] = [];
   pagina.ranuras.forEach((id, i) => {
-    if (id) salida.push({ imagenId: id, rect: ranuras[i] });
+    if (id && ranuras[i]) salida.push({ imagenId: id, rect: ranuras[i] });
   });
   return salida;
 }
@@ -173,8 +173,8 @@ export function ajustarContener(anchoImg: number, altoImg: number, caja: { w: nu
   return { w, h, dx: (caja.w - w) / 2, dy: (caja.h - h) / 2 };
 }
 
-// Hoja carta/A4 en puntos PDF (A4) y márgenes.
-export const HOJA = { ancho: 595.28, alto: 841.89, margen: 28, separacion: 6 } as const;
+// Hoja tamaño CARTA (8.5 x 11 in) en puntos PDF y márgenes.
+export const HOJA = { ancho: 612, alto: 792, margen: 28, separacion: 6 } as const;
 
 export type CajaPdf = { x: number; y: number; w: number; h: number };
 
