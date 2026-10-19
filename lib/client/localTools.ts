@@ -1,5 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import { decodificarImagen, esArchivoPdf, imagenAJpeg } from '@/lib/client/imageDecode';
+import { HOJA } from '@/lib/pdfLayout';
 
 export type LocalArtifact = { filename: string; mimeType: string; dataUrl: string; size: number };
 
@@ -23,7 +24,7 @@ function aBlob(canvas: HTMLCanvasElement, tipo: string, calidad: number, error: 
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(error))), tipo, calidad));
 }
 
-/** Foto(s) o PDF(s) -> un solo PDF. Los PDFs se anexan tal cual; las imágenes se centran en hoja A4. */
+/** Foto(s) o PDF(s) -> un solo PDF. Los PDFs se anexan tal cual; las imágenes se centran en hoja carta. */
 export async function photosToPdf(files: File[]): Promise<LocalArtifact> {
   if (!files.length || files.length > 20) throw new Error('Selecciona entre 1 y 20 imágenes.');
   const pdf = await PDFDocument.create();
@@ -36,8 +37,8 @@ export async function photosToPdf(files: File[]): Promise<LocalArtifact> {
     }
     const { blob } = await imagenAJpeg(file, file.name || 'imagen', { maxLado: 2200, calidad: 0.9 });
     const image = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
-    const page = pdf.addPage([595.28, 841.89]);
-    const margin = 28;
+    const page = pdf.addPage([HOJA.ancho, HOJA.alto]);
+    const margin = HOJA.margen;
     const scale = Math.min((page.getWidth() - margin * 2) / image.width, (page.getHeight() - margin * 2) / image.height, 1);
     const width = image.width * scale;
     const height = image.height * scale;
