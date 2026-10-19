@@ -22,9 +22,17 @@ export type Tramite = {
   };
 };
 
+const CAMPO_PLACA: CampoTramite = {
+  id: 'placa',
+  etiqueta: 'Número de placas',
+  placeholder: 'Ej. ABC1234',
+  ayuda: 'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
+};
+
 // Para agregar un trámite nuevo: añade un objeto aquí. No hay que tocar
 // ninguna otra parte del sistema — la pantalla principal y el flujo de
 // pasos se generan solos a partir de esta lista.
+// Las capturas de muestra viven en public/muestras/ (una por trámite).
 export const tramites: Tramite[] = [
   {
     slug: 'recibo-cfe',
@@ -40,15 +48,13 @@ export const tramites: Tramite[] = [
         id: 'nombreServicio',
         etiqueta: 'Nombre del servicio',
         placeholder: 'Como aparece en tu recibo',
-        ayuda:
-          'Es el nombre completo que aparece en la parte de arriba de tu recibo anterior.',
+        ayuda: 'Es el nombre completo que aparece en la parte de arriba de tu recibo anterior.',
       },
       {
         id: 'numeroServicio',
         etiqueta: 'Número de servicio',
         placeholder: 'Ej. 123456789012',
-        ayuda:
-          'Este campo corresponde al número de servicio. Puedes encontrarlo en tu recibo anterior.',
+        ayuda: 'Este campo corresponde al número de servicio. Puedes encontrarlo en tu recibo anterior.',
       },
     ],
     // Los datos de contacto se capturan en el dispositivo; no se almacenan
@@ -62,16 +68,8 @@ export const tramites: Tramite[] = [
     colorHex: '#3F8F5F',
     colorSuaveHex: '#DCEEE1',
     urlOficial: 'https://data.finanzas.cdmx.gob.mx/Front_ten/',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/Front_ten/',
-    campos: [
-      {
-        id: 'placa',
-        etiqueta: 'Número de placas',
-        placeholder: 'Ej. ABC1234',
-        ayuda:
-          'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
-      },
-    ],
+    imagenReferenciaUrl: '/muestras/tenencia-cdmx.jpg',
+    campos: [CAMPO_PLACA],
   },
   {
     slug: 'tenencia-edomex',
@@ -80,18 +78,9 @@ export const tramites: Tramite[] = [
     descripcionCorta: 'Consulta y paga tu tenencia vehicular',
     colorHex: '#7A5CA8',
     colorSuaveHex: '#E7E0F2',
-    urlOficial:
-      'https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/#/',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/',
-    campos: [
-      {
-        id: 'placa',
-        etiqueta: 'Número de placas',
-        placeholder: 'Ej. ABC1234',
-        ayuda:
-          'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
-      },
-    ],
+    urlOficial: 'https://tenencia.edomex.gob.mx/TenenciaIndividual/tenencia/A06E1A88B8A6ED4B/#/',
+    imagenReferenciaUrl: '/muestras/tenencia-edomex.jpg',
+    campos: [CAMPO_PLACA],
   },
   {
     slug: 'multas-edomex',
@@ -101,16 +90,8 @@ export const tramites: Tramite[] = [
     colorHex: '#C9503A',
     colorSuaveHex: '#F5DFD8',
     urlOficial: 'https://infracciones.ssedomex.gob.mx/Search',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://infracciones.ssedomex.gob.mx/Search',
-    campos: [
-      {
-        id: 'placa',
-        etiqueta: 'Número de placas',
-        placeholder: 'Ej. ABC1234',
-        ayuda:
-          'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
-      },
-    ],
+    imagenReferenciaUrl: '/muestras/multas-edomex.jpg',
+    campos: [CAMPO_PLACA],
   },
   {
     slug: 'multas-cdmx',
@@ -120,16 +101,8 @@ export const tramites: Tramite[] = [
     colorHex: '#D9791F',
     colorSuaveHex: '#F6E4D0',
     urlOficial: 'https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://data.finanzas.cdmx.gob.mx/consulta_adeudos',
-    campos: [
-      {
-        id: 'placa',
-        etiqueta: 'Número de placas',
-        placeholder: 'Ej. ABC1234',
-        ayuda:
-          'Lo encuentras en tu tarjeta de circulación o directamente en las placas de tu auto.',
-      },
-    ],
+    imagenReferenciaUrl: '/muestras/multas-cdmx.jpg',
+    campos: [CAMPO_PLACA],
   },
   {
     slug: 'agua-sacmex',
@@ -139,7 +112,7 @@ export const tramites: Tramite[] = [
     colorHex: '#3D74A6',
     colorSuaveHex: '#DAE8F1',
     urlOficial: 'https://aplicaciones.sacmex.cdmx.gob.mx/fut/',
-    imagenReferenciaUrl: 'https://image.thum.io/get/width/1000/crop/800/https://aplicaciones.sacmex.cdmx.gob.mx/fut/',
+    imagenReferenciaUrl: '/muestras/agua-sacmex.jpg',
     campos: [
       {
         id: 'cuenta',
