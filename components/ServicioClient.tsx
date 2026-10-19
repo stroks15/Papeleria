@@ -13,6 +13,12 @@ type Artifact = { filename: string; mimeType: string; dataBase64: string; size: 
 const LOCAL_ACTIONS = new Set(['create_pdf_from_photos','scan_to_pdf','compress_pdf','restore_photo','create_id_photos','scan_ine']);
 const PDF_ACTIONS = new Set(['create_cheatsheet','create_flashcards','fill_form','research_topic']);
 
+// Android a veces entrega archivos sin tipo MIME: también se reconoce por extensión.
+// El contenido real se valida después con lib/client/imageDecode.
+const EXT_IMAGEN = /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i;
+function esPdfArchivo(f: File): boolean { return f.type === 'application/pdf' || /\.pdf$/i.test(f.name); }
+function esImagenArchivo(f: File): boolean { return f.type.startsWith('image/') || EXT_IMAGEN.test(f.name) || (!f.type && !esPdfArchivo(f)); }
+
 function toArtifact(filename:string,mimeType:string,dataUrl:string,size:number):Artifact {
   return { filename, mimeType, dataBase64:dataUrl.split(',')[1] || '', size };
 }
@@ -50,8 +56,8 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
     }
   }
   function entregar(a:Artifact){setArtifact(a);if(a.mimeType==='application/pdf')setTimeout(()=>void descargar(a),250);}
-  function seleccionar(files:FileList|null){if(!files)return;const list=Array.from(files).filter(f=>servicio.input==='pdf'?(f.type==='application/pdf'||f.name.endsWith('.pdf')):(f.type.startsWith('image/')||f.type==='application/pdf')).slice(0,servicio.input==='images'?20:5);setArchivos(list);setArtifact(null);setRespuesta(list.length?list.length+' archivo(s) seleccionado(s).':'No se seleccionó un archivo compatible.');}
-  function seleccionarIne(side:'front'|'back',files:FileList|null){const f=files?.[0];if(!f)return;if(!f.type.startsWith('image/')){setRespuesta('La INE debe ser una fotografía.');return;}side==='front'?setIneFront(f):setIneBack(f);setArtifact(null);setRespuesta(side==='front'?'Frente listo.':'Reverso listo.');}
+  function seleccionar(files:FileList|null){if(!files)return;const list=Array.from(files).filter(f=>servicio.input==='pdf'?esPdfArchivo(f):(esImagenArchivo(f)||esPdfArchivo(f))).slice(0,servicio.input==='images'?20:5);setArchivos(list);setArtifact(null);setRespuesta(list.length?list.length+' archivo(s) seleccionado(s).':'No se seleccionó un archivo compatible.');}
+  function seleccionarIne(side:'front'|'back',files:FileList|null){const f=files?.[0];if(!f)return;if(!esImagenArchivo(f)){setRespuesta('La INE debe ser una fotografía.');return;}side==='front'?setIneFront(f):setIneBack(f);setArtifact(null);setRespuesta(side==='front'?'Frente listo.':'Reverso listo.');}
 
   async function local(){if(esIne){if(!ineFront||!ineBack)throw new Error('Selecciona frente y reverso de la INE.');const r=await scanIneToPdf(ineFront,ineBack);return toArtifact(r.filename,r.mimeType,r.dataUrl,r.size);}
     if(!archivos.length)throw new Error('Selecciona un archivo.');let r;
@@ -85,8 +91,8 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
         <p className="text-sm text-tinta-suave">Para cada cara puedes usar cámara o elegir una foto de la galería.</p>
         <div className="rounded-2xl bg-papel p-4">
           <b className="text-tinta">1. Frente de la INE</b>
-          <input ref={frontGallery} type="file" accept="image/*" className="sr-only" onChange={e=>seleccionarIne('front',e.target.files)}/>
-          <input ref={frontCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionarIne('front',e.target.files)}/>
+          <input ref={frontGallery} type="file" accept="image/*" className="sr-only" onChange={e=>{seleccionarIne('front',e.target.files);e.target.value='';}}/>
+          <input ref={frontCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>{seleccionarIne('front',e.target.files);e.target.value='';}}/>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={()=>frontGallery.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">🖼️ Galería</button>
             <button type="button" onClick={()=>frontCamera.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">📷 Cámara</button>
@@ -95,8 +101,8 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
         </div>
         <div className="rounded-2xl bg-papel p-4">
           <b className="text-tinta">2. Reverso de la INE</b>
-          <input ref={backGallery} type="file" accept="image/*" className="sr-only" onChange={e=>seleccionarIne('back',e.target.files)}/>
-          <input ref={backCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionarIne('back',e.target.files)}/>
+          <input ref={backGallery} type="file" accept="image/*" className="sr-only" onChange={e=>{seleccionarIne('back',e.target.files);e.target.value='';}}/>
+          <input ref={backCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>{seleccionarIne('back',e.target.files);e.target.value='';}}/>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={()=>backGallery.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">🖼️ Galería</button>
             <button type="button" onClick={()=>backCamera.current?.click()} className="rounded-xl bg-white p-3 font-bold text-tinta">📷 Cámara</button>
@@ -104,7 +110,7 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
           {ineBack&&<p className="mt-2 truncate text-sm text-tinta">✓ {ineBack.name}</p>}
         </div>
         <p className="rounded-2xl bg-white p-3 text-sm text-tinta">El PDF tendrá una página tamaño carta, con frente y reverso recortados, enderezados y colocados a escala de la plantilla.</p>
-      </div>: (necesitaArchivo||esOpcional)&&<div className="mt-5"><input ref={galleryRef} type="file" accept={accept} multiple={servicio.input==='images'||servicio.input==='images-or-pdf'} className="sr-only" onChange={e=>seleccionar(e.target.files)}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>seleccionar(e.target.files)}/>
+      </div>: (necesitaArchivo||esOpcional)&&<div className="mt-5"><input ref={galleryRef} type="file" accept={accept} multiple={servicio.input==='images'||servicio.input==='images-or-pdf'} className="sr-only" onChange={e=>{seleccionar(e.target.files);e.target.value='';}}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={e=>{seleccionar(e.target.files);e.target.value='';}}/>
         <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>galleryRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-papel p-4 font-bold text-tinta">🖼️ Galería</button>{(servicio.input==='images'||servicio.input==='images-or-pdf'||esOpcional)&&<button type="button" onClick={()=>cameraRef.current?.click()} className="rounded-2xl border-2 border-dashed border-oficial bg-white p-4 font-bold text-tinta">📷 Tomar foto</button>}</div>
         {esOpcional&&<p className="mt-2 text-xs text-tinta-suave">Foto opcional: puedes hacer el anuncio solo con texto.</p>}
         {archivos.length>0&&<p className="mt-3 rounded-2xl bg-papel p-3 text-sm text-tinta">{archivos.length} archivo(s) seleccionado(s).</p>}</div>}
