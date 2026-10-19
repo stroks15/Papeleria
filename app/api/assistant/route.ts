@@ -1,6 +1,7 @@
 import { executeAssistantTool, type ToolArtifact } from '@/lib/server/assistantTools';
 import { runAiTask } from '@/lib/server/aiGateway';
-import { createAdSvg, createPrintOrderArtifact } from '@/lib/server/toolFallbacks';
+import { respuestaSinIA } from '@/lib/server/offlineContent';
+import { anuncioDesdeTexto, createAdSvg, createPrintOrderArtifact } from '@/lib/server/toolFallbacks';
 import { jsonWithCors, preflight } from '@/lib/server/cors';
 
 export const runtime = 'nodejs';
@@ -19,6 +20,8 @@ const MAX_IMAGES = 20;
 const MAX_FILES = 5;
 const MAX_IMAGE_CHARS = 8_000_000;
 const MAX_FILE_CHARS = 70_000_000;
+// La función termina a los 30 s: lo que quede tras la cadena de IA se usa para el modo sin IA.
+const LIMITE_TOTAL_MS = 28_500;
 
 type FileInput = { data: string; mimeType: string; name: string };
 type Body = {
@@ -33,6 +36,7 @@ export async function OPTIONS(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const inicio = Date.now();
   try {
     const body = (await req.json()) as Body;
     const message = typeof body.message === 'string' ? body.message.trim() : '';
@@ -93,17 +97,29 @@ export async function POST(req: Request) {
       files,
     });
 
+    let reply = ai.reply;
+    const sinIA = ai.provider === 'fallback';
+
     if (action === 'create_local_ad') {
-      artifact = createAdSvg(ai.reply, images[0]);
+      // Con IA se usa su redacción; sin IA, el anuncio se arma con el texto que escribió la persona.
+      const copy = anuncioDesdeTexto(sinIA ? message : ai.reply);
+      artifact = createAdSvg(copy, images[0]);
+      if (sinIA) reply = 'Anuncio creado con tu texto:\n\n' + [copy.titulo, ...copy.lineas].join('\n');
+    } else if (sinIA) {
+      // Resumen, flashcards e investigación: contenido real (tu material o Wikipedia) en lugar de plantillas vacías.
+      const restante = LIMITE_TOTAL_MS - (Date.now() - inicio);
+      const local = await respuestaSinIA(action, message, restante);
+      if (local) reply = local;
     }
 
     return jsonWithCors(req, {
       ok: true,
-      reply: ai.reply,
+      reply,
       action,
       parameters: {},
       provider: ai.provider,
       model: ai.model,
+      failed: sinIA ? ai.failed : undefined,
       artifact,
       summary,
     });
