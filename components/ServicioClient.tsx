@@ -28,6 +28,18 @@ function dataUrl(bytes:Uint8Array,mimeType:string) {
 }
 function readFile(file:File):Promise<string>{return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=()=>reject(r.error);r.readAsDataURL(file);});}
 
+// El anuncio llega como SVG; se convierte a PNG en el dispositivo para poder guardarlo/compartirlo como imagen.
+async function svgAPng(a: Artifact): Promise<Artifact> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('No se pudo dibujar el anuncio.')); img.src = 'data:image/svg+xml;base64,' + a.dataBase64; });
+  const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
+  const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('No se pudo crear la imagen.');
+  ctx.drawImage(img, 0, 0, 1080, 1350);
+  const url = canvas.toDataURL('image/png');
+  const b64 = url.split(',')[1] || '';
+  return { filename: a.filename.replace(/\.svg$/i, '.png'), mimeType: 'image/png', dataBase64: b64, size: Math.floor(b64.length * 0.75) };
+}
+
 export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
   const [mensaje,setMensaje]=useState(''); const [respuesta,setRespuesta]=useState(''); const [cargando,setCargando]=useState(false);
   const [archivos,setArchivos]=useState<File[]>([]); const [ineFront,setIneFront]=useState<File|null>(null); const [ineBack,setIneBack]=useState<File|null>(null);
@@ -55,7 +67,7 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
       setRespuesta('No se pudo guardar el archivo. Pulsa Descargar de nuevo.');
     }
   }
-  function entregar(a:Artifact){setArtifact(a);if(a.mimeType==='application/pdf')setTimeout(()=>void descargar(a),250);}
+  function entregar(a:Artifact){setArtifact(a);if(a.mimeType==='application/pdf'||a.mimeType==='image/png')setTimeout(()=>void descargar(a),250);}
   function seleccionar(files:FileList|null){if(!files)return;const list=Array.from(files).filter(f=>servicio.input==='pdf'?esPdfArchivo(f):(esImagenArchivo(f)||esPdfArchivo(f))).slice(0,servicio.input==='images'?20:5);setArchivos(list);setArtifact(null);setRespuesta(list.length?list.length+' archivo(s) seleccionado(s).':'No se seleccionó un archivo compatible.');}
   function seleccionarIne(side:'front'|'back',files:FileList|null){const f=files?.[0];if(!f)return;if(!esImagenArchivo(f)){setRespuesta('La INE debe ser una fotografía.');return;}side==='front'?setIneFront(f):setIneBack(f);setArtifact(null);setRespuesta(side==='front'?'Frente listo.':'Reverso listo.');}
 
@@ -73,7 +85,12 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
     const files=archivos.map((f,i)=>({data:urls[i],mimeType:f.type||'application/octet-stream',name:f.name}));
     const data=await llamarApi<any>('/api/assistant',{method:'POST',timeoutMs:30000,body:{message:mensaje.trim()||'Ayúdame con esta herramienta.',context:{currentModule:servicio.id,currentStep:'inicio',requestedAction:servicio.action},images,files}});
     if(!data.ok)throw new Error(data.error||'No se pudo ejecutar el servicio.');
-    if(data.artifact)entregar(data.artifact);
+    if(data.artifact){
+      let a:Artifact=data.artifact;
+      // Anuncio: se guarda como imagen PNG; si la conversión falla se entrega el SVG original.
+      if(a.mimeType==='image/svg+xml'){try{a=await svgAPng(a);}catch{/* se mantiene el SVG */}}
+      entregar(a);
+    }
     else if(PDF_ACTIONS.has(servicio.action)){const {PDFDocument,StandardFonts}=await import('pdf-lib');const pdf=await PDFDocument.create();let page=pdf.addPage([595.28,841.89]);const font=await pdf.embedFont(StandardFonts.Helvetica);let y=800;for(const raw of String(data.reply||'Listo.').replace(/\r/g,'').split('\n')){for(let x=0;x<raw.length;x+=85){if(y<45){page=pdf.addPage([595.28,841.89]);y=800;}page.drawText(raw.slice(x,x+85),{x:40,y,size:11,font});y-=16;}y-=5;}const bytes=await pdf.save({useObjectStreams:true,addDefaultPage:false});entregar(toArtifact('resultado-papeleria-arcoiris.pdf','application/pdf',dataUrl(bytes,'application/pdf'),bytes.byteLength));}
     setRespuesta(data.reply||'Listo.');
   }
@@ -120,7 +137,7 @@ export default function ServicioClient({ servicio }:{servicio:AIServicio}) {
       {servicio.action==='fill_form'&&<div className="mt-4 rounded-2xl bg-papel p-4 text-sm text-tinta"><b>Ejemplos:</b><ul className="mt-2 list-disc pl-5"><li>Solicitud de empleo</li><li>Formato escolar</li><li>Solicitud de beca</li><li>Formato de trámite gubernamental</li></ul></div>}
       <button type="button" onClick={()=>void ejecutar()} disabled={cargando||(esIne?(!ineFront||!ineBack):(necesitaArchivo&&!archivos.length))} className="mt-4 w-full rounded-2xl bg-oficial p-4 text-lg font-bold text-carta disabled:opacity-50">{cargando?'Procesando…':esIne?'Escanear INE y generar PDF':LOCAL_ACTIONS.has(servicio.action)?'Procesar en el dispositivo':servicio.action==='create_reminder'?'Programar recordatorio':'Ejecutar'}</button>
       {respuesta&&<div className="mt-4 whitespace-pre-line rounded-2xl bg-white p-4 text-tinta ring-2 ring-tinta/10">{respuesta}</div>}
-      {artifact&&<div className="mt-4 rounded-2xl bg-papel p-4"><b className="text-tinta">Archivo listo: {artifact.filename}</b>{artifact.mimeType==='application/pdf'&&<p className="mt-1 text-xs text-tinta-suave">El PDF se descargó automáticamente.</p>}<button type="button" onClick={()=>descargar(artifact)} className="mt-3 w-full rounded-xl bg-oficial p-3 font-bold text-carta">Descargar de nuevo</button></div>}
+      {artifact&&<div className="mt-4 rounded-2xl bg-papel p-4"><b className="text-tinta">Archivo listo: {artifact.filename}</b>{artifact.mimeType==='application/pdf'&&<p className="mt-1 text-xs text-tinta-suave">El PDF se descargó automáticamente.</p>}{artifact.mimeType==='image/png'&&<><p className="mt-1 text-xs text-tinta-suave">La imagen PNG se guardó automáticamente.</p><img src={'data:image/png;base64,'+artifact.dataBase64} alt="Vista previa del anuncio" className="mt-3 w-full rounded-xl ring-2 ring-tinta/10"/></>}<button type="button" onClick={()=>descargar(artifact)} className="mt-3 w-full rounded-xl bg-oficial p-3 font-bold text-carta">{artifact.mimeType==='image/png'?'Guardar PNG de nuevo':'Descargar de nuevo'}</button></div>}
     </section>
   </main>;
 }

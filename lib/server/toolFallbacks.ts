@@ -72,45 +72,108 @@ function envolver(texto: string, max: number): string[] {
 
 const FUENTE = "Arial, 'DejaVu Sans', sans-serif";
 
+// Ilustraciones de papelería (formas SVG simples) para decorar el anuncio.
+function libros(x: number, y: number): string {
+  return (
+    '<rect x="' + x + '" y="' + (y + 70) + '" width="130" height="30" rx="4" fill="#e63946"/>' +
+    '<rect x="' + (x + 10) + '" y="' + (y + 40) + '" width="110" height="30" rx="4" fill="#2a9d8f"/>' +
+    '<rect x="' + (x + 18) + '" y="' + (y + 10) + '" width="96" height="30" rx="4" fill="#f4a261"/>' +
+    '<rect x="' + (x + 14) + '" y="' + (y + 80) + '" width="100" height="6" rx="3" fill="#ffffff"/>' +
+    '<rect x="' + (x + 24) + '" y="' + (y + 50) + '" width="80" height="6" rx="3" fill="#ffffff"/>' +
+    '<rect x="' + (x + 32) + '" y="' + (y + 20) + '" width="64" height="6" rx="3" fill="#ffffff"/>'
+  );
+}
+
+function lapiz(x: number, y: number, color: string, giro: number): string {
+  return (
+    '<g transform="rotate(' + giro + ' ' + (x + 20) + ' ' + (y + 65) + ')">' +
+    '<rect x="' + x + '" y="' + (y + 12) + '" width="40" height="100" fill="' + color + '"/>' +
+    '<rect x="' + (x + 13) + '" y="' + (y + 12) + '" width="6" height="100" fill="#ffffff" opacity="0.45"/>' +
+    '<rect x="' + x + '" y="' + y + '" width="40" height="16" rx="5" fill="#e63946"/>' +
+    '<rect x="' + x + '" y="' + (y + 20) + '" width="40" height="8" fill="#b8b8b8"/>' +
+    '<polygon points="' + x + ',' + (y + 112) + ' ' + (x + 40) + ',' + (y + 112) + ' ' + (x + 20) + ',' + (y + 150) + '" fill="#f5d7a1"/>' +
+    '<polygon points="' + (x + 13) + ',' + (y + 134) + ' ' + (x + 27) + ',' + (y + 134) + ' ' + (x + 20) + ',' + (y + 150) + '" fill="#252525"/>' +
+    '</g>'
+  );
+}
+
+function regla(x: number, y: number): string {
+  let marcas = '';
+  for (let i = 0; i < 11; i++) {
+    marcas += '<rect x="' + (x + 10 + i * 11) + '" y="' + (y + 40) + '" width="2" height="' + (i % 5 === 0 ? 18 : 10) + '" fill="#252525"/>';
+  }
+  return '<rect x="' + x + '" y="' + (y + 40) + '" width="130" height="46" rx="6" fill="#f1c40f"/>' + marcas;
+}
+
+function cuaderno(x: number, y: number, color: string): string {
+  let espiral = '';
+  for (let i = 0; i < 5; i++) {
+    espiral += '<circle cx="' + (x + 6) + '" cy="' + (y + 18 + i * 22) + '" r="7" fill="#ffffff" stroke="#252525" stroke-width="3"/>';
+  }
+  return (
+    '<rect x="' + x + '" y="' + y + '" width="96" height="125" rx="10" fill="' + color + '"/>' +
+    '<rect x="' + (x + 28) + '" y="' + (y + 30) + '" width="54" height="34" rx="5" fill="#ffffff"/>' +
+    '<rect x="' + (x + 34) + '" y="' + (y + 42) + '" width="42" height="5" rx="2" fill="' + color + '"/>' +
+    espiral
+  );
+}
+
 export function createAdSvg(copy: AdCopy, imageDataUrl?: string): ServerArtifact {
   const validImage = !!imageDataUrl && /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(imageDataUrl);
   const partes: string[] = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">',
-    '<rect width="1080" height="1350" fill="#fff9ed"/>',
-    '<rect x="40" y="40" width="1000" height="1270" rx="48" fill="#ffffff" stroke="#6c63ff" stroke-width="10"/>',
-    '<rect x="50" y="50" width="980" height="150" rx="40" fill="#6c63ff"/>',
-    '<text x="540" y="148" text-anchor="middle" font-family="' + FUENTE + '" font-size="62" font-weight="700" fill="#ffffff">PAPELERÍA ARCOÍRIS</text>',
+    // Hoja de cuaderno: renglones azules y margen rojo.
+    '<rect width="1080" height="1350" fill="#fffdf6"/>',
   ];
-  ['#e63946', '#f4a261', '#f1c40f', '#2a9d8f', '#3d74a6', '#7a5ca8'].forEach((color, i) => {
-    partes.push('<rect x="' + (120 + i * 140) + '" y="215" width="130" height="14" rx="7" fill="' + color + '"/>');
-  });
-
-  let y = 330;
-  for (const linea of envolver(copy.titulo.toUpperCase(), 20).slice(0, 3)) {
-    partes.push('<text x="540" y="' + y + '" text-anchor="middle" font-family="' + FUENTE + '" font-size="76" font-weight="700" fill="#252525">' + escapeXml(linea) + '</text>');
-    y += 92;
+  for (let ry = 470; ry < 1100; ry += 58) {
+    partes.push('<rect x="0" y="' + ry + '" width="1080" height="3" fill="#bfd9f2"/>');
   }
-  y += 10;
+  partes.push(
+    '<rect x="96" y="0" width="4" height="1350" fill="#f3a6a6"/>',
+    '<rect x="14" y="14" width="1052" height="1322" rx="40" fill="none" stroke="#6c63ff" stroke-width="10"/>',
+  );
+  // Arcoíris en la parte superior.
+  ['#e63946', '#f4a261', '#f1c40f', '#2a9d8f', '#3d74a6', '#7a5ca8'].forEach((color, i) => {
+    const r = 340 - i * 26;
+    partes.push('<path d="M ' + (540 - r) + ' 340 A ' + r + ' ' + r + ' 0 0 1 ' + (540 + r) + ' 340" fill="none" stroke="' + color + '" stroke-width="26"/>');
+  });
+  partes.push(
+    '<rect x="150" y="372" width="780" height="92" rx="46" fill="#6c63ff"/>',
+    '<text x="540" y="436" text-anchor="middle" font-family="' + FUENTE + '" font-size="54" font-weight="700" fill="#ffffff">PAPELERÍA ARCOÍRIS</text>',
+  );
+
+  let y = 570;
+  for (const linea of envolver(copy.titulo.toUpperCase(), 20).slice(0, 3)) {
+    partes.push('<text x="540" y="' + y + '" text-anchor="middle" font-family="' + FUENTE + '" font-size="74" font-weight="700" fill="#252525">' + escapeXml(linea) + '</text>');
+    y += 88;
+  }
+  y += 6;
 
   if (validImage) {
-    partes.push('<image href="' + imageDataUrl + '" x="140" y="' + y + '" width="800" height="330" preserveAspectRatio="xMidYMid slice"/>');
-    y += 400;
+    partes.push('<image href="' + imageDataUrl + '" x="190" y="' + y + '" width="700" height="250" preserveAspectRatio="xMidYMid slice"/>');
+    y += 300;
   }
 
   for (const texto of copy.lineas) {
     const trozos = envolver(texto, 30).slice(0, 2);
     for (let i = 0; i < trozos.length; i++) {
       const linea = trozos[i];
-      if (y > 1090) break;
-      partes.push('<text x="' + (i === 0 ? 150 : 190) + '" y="' + y + '" font-family="' + FUENTE + '" font-size="44" fill="#252525">' + (i === 0 ? '• ' : '') + escapeXml(linea) + '</text>');
-      y += 58;
+      if (y > 1040) break;
+      partes.push('<text x="' + (i === 0 ? 150 : 190) + '" y="' + y + '" font-family="' + FUENTE + '" font-size="42" fill="#252525">' + (i === 0 ? '• ' : '') + escapeXml(linea) + '</text>');
+      y += 54;
     }
-    y += 14;
+    y += 8;
   }
 
   partes.push(
-    '<rect x="140" y="1150" width="800" height="110" rx="55" fill="#2a9d8f"/>',
-    '<text x="540" y="1220" text-anchor="middle" font-family="' + FUENTE + '" font-size="46" font-weight="700" fill="#ffffff">' + escapeXml(copy.cta) + '</text>',
+    '<rect x="140" y="1070" width="800" height="100" rx="50" fill="#2a9d8f"/>',
+    '<text x="540" y="1135" text-anchor="middle" font-family="' + FUENTE + '" font-size="42" font-weight="700" fill="#ffffff">' + escapeXml(copy.cta) + '</text>',
+    // Fila de papelería al pie.
+    libros(120, 1190),
+    lapiz(290, 1180, '#3d74a6', -25),
+    regla(440, 1180),
+    lapiz(620, 1180, '#2a9d8f', 20),
+    cuaderno(800, 1180, '#7a5ca8'),
     '</svg>',
   );
   const svg = partes.join('');
