@@ -8,6 +8,7 @@ import {
   cambiarPlantilla,
   colocaciones,
   distribuir,
+  HOJA,
   imagenesUsadas,
   limitar,
   normalizarRect,
@@ -30,6 +31,8 @@ type Props = {
 type Seleccion = { pagina: number; ranura?: number; itemId?: string };
 
 let contadorItems = 0;
+
+const INSET_HOJA = (HOJA.margen / HOJA.alto) * 100 + '% ' + (HOJA.margen / HOJA.ancho) * 100 + '%';
 
 /** Editor de hojas: asigna fotos a cada ranura o las coloca libremente (mover, tamaño). */
 export default function EditorPaginas({ imagenes, paginas, onCambio, plantillaPorDefecto }: Props) {
@@ -238,10 +241,10 @@ export default function EditorPaginas({ imagenes, paginas, onCambio, plantillaPo
               </button>
             </div>
 
-            {/* Vista de la hoja */}
+            {/* Vista de la hoja (carta) */}
             <div className="mx-auto w-full max-w-[300px]">
-              <div className="relative w-full rounded-sm bg-white shadow-md ring-1 ring-black/15" style={{ aspectRatio: '210 / 297' }}>
-                <div ref={(el) => { areas.current[pi] = el; }} className="absolute" style={{ inset: '3.3% 4.7%' }} onClick={() => setSel({ pagina: pi })}>
+              <div className="relative w-full rounded-sm bg-white shadow-md ring-1 ring-black/15" style={{ aspectRatio: HOJA.ancho + ' / ' + HOJA.alto }}>
+                <div ref={(el) => { areas.current[pi] = el; }} className="absolute" style={{ inset: INSET_HOJA }} onClick={() => setSel({ pagina: pi })}>
                   {pagina.tipo === 'plantilla' &&
                     plantillaPorId(pagina.plantilla).ranuras.map((r, ri) => {
                       const id = pagina.ranuras[ri];
