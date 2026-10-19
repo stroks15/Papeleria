@@ -2,6 +2,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { PDFDocument } from 'pdf-lib';
+import { decodificarImagen, imagenAJpeg } from '@/lib/client/imageDecode';
 import { ajustarContener, colocaciones, HOJA, rectAPdf, type Pagina } from '@/lib/pdfLayout';
 
 /** Imagen cargada en memoria del dispositivo. Nada de esto sale del teléfono. */
@@ -22,12 +23,12 @@ function nuevoId(): string {
 
 export async function cargarImagen(blob: Blob, nombre: string): Promise<ImagenItem | null> {
   try {
-    const bitmap = await createImageBitmap(blob);
-    const item: ImagenItem = { id: nuevoId(), nombre, url: URL.createObjectURL(blob), ancho: bitmap.width, alto: bitmap.height, blob };
-    bitmap.close();
+    const d = await decodificarImagen(blob, nombre);
+    const item: ImagenItem = { id: nuevoId(), nombre, url: URL.createObjectURL(d.blob), ancho: d.ancho, alto: d.alto, blob: d.blob };
+    d.liberar();
     return item;
   } catch {
-    return null; // formato que el navegador no sabe abrir (EMF, TIFF, etc.)
+    return null; // PDF, HEIC, archivo dañado o formato que el WebView no sabe abrir
   }
 }
 
@@ -50,20 +51,7 @@ export function liberarImagenes(items: ImagenItem[]): void {
 const MAX_LADO_PDF = 3000;
 
 async function aJpeg(blob: Blob): Promise<Uint8Array> {
-  const bitmap = await createImageBitmap(blob); // aplica la orientación EXIF
-  const escala = Math.min(1, MAX_LADO_PDF / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * escala));
-  canvas.height = Math.max(1, Math.round(bitmap.height * escala));
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas no disponible en este dispositivo.');
-  ctx.fillStyle = '#FFFFFF'; // PNG con transparencia: fondo blanco
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const jpg = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo convertir una imagen.'))), 'image/jpeg', 0.92),
-  );
+  const { blob: jpg } = await imagenAJpeg(blob, 'imagen', { maxLado: MAX_LADO_PDF, calidad: 0.92 });
   return new Uint8Array(await jpg.arrayBuffer());
 }
 

@@ -1,5 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import cvReadyPromise from '@techstark/opencv-js';
+import { decodificarImagen } from '@/lib/client/imageDecode';
 
 export type LocalArtifact = { filename: string; mimeType: string; dataUrl: string; size: number };
 
@@ -8,25 +9,6 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string) {
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
   return `data:${mimeType};base64,${btoa(binary)}`;
-}
-
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error || new Error('No se pudo leer la imagen.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function loadImage(file: File): Promise<HTMLImageElement> {
-  const url = await readAsDataUrl(file);
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('No se pudo abrir la fotografía.'));
-    image.src = url;
-  });
 }
 
 function orderCorners(points: Array<{ x: number; y: number }>) {
@@ -42,18 +24,22 @@ function orderCorners(points: Array<{ x: number; y: number }>) {
 
 async function detectAndWarp(file: File): Promise<Blob> {
   const cv = await cvReadyPromise;
-  const image = await loadImage(file);
+  const decodificada = await decodificarImagen(file, file.name || 'foto de la INE');
   const maxSide = 1500;
-  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const scale = Math.min(1, maxSide / Math.max(decodificada.ancho, decodificada.alto));
+  const width = Math.max(1, Math.round(decodificada.ancho * scale));
+  const height = Math.max(1, Math.round(decodificada.alto * scale));
 
   const inputCanvas = document.createElement('canvas');
   inputCanvas.width = width;
   inputCanvas.height = height;
   const inputContext = inputCanvas.getContext('2d');
-  if (!inputContext) throw new Error('Canvas no disponible.');
-  inputContext.drawImage(image, 0, 0, width, height);
+  if (!inputContext) {
+    decodificada.liberar();
+    throw new Error('Canvas no disponible.');
+  }
+  inputContext.drawImage(decodificada.fuente, 0, 0, width, height);
+  decodificada.liberar();
 
   const src = cv.imread(inputCanvas);
   const gray = new cv.Mat();
@@ -153,14 +139,9 @@ async function detectAndWarp(file: File): Promise<Blob> {
 
 export async function scanIneToPdf(front: File, back: File): Promise<LocalArtifact> {
   if (!front || !back) throw new Error('Necesitas una foto del frente y otra del reverso de la INE.');
-  if (!front.type.startsWith('image/') || !back.type.startsWith('image/')) {
-    throw new Error('Las dos caras de la INE deben ser fotografías.');
-  }
 
-  const [frontBlob, backBlob] = await Promise.all([
-    detectAndWarp(front),
-    detectAndWarp(back),
-  ]);
+  const frontBlob = await detectAndWarp(front);
+  const backBlob = await detectAndWarp(back);
 
   /*
    * Plantilla basada directamente en el PDF de referencia:
